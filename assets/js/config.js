@@ -10,7 +10,7 @@ window.CONFIG = {
      Επικόλλησε εδώ το URL του Google Apps Script Web App.
      Όσο είναι κενό (''), το site τρέχει σε DEMO MODE: δείχνει
      ψεύτικες διαθέσιμες ώρες και δεν κλείνει πραγματικά ραντεβού. */
-  API_URL: '',
+  API_URL: 'https://script.google.com/macros/s/AKfycbww-iRh5xueCymEjEQL_cha1TYdJlzXON3tTKHKeoks2cVMRSxo0A7-zWKdT0oFRu9a/exec',
 
   /* ---- 1β. ΘΕΜΑ ΕΜΦΑΝΙΣΗΣ ------------------------------------
      'c' = TICKET       — άσπρο / μαύρο / acid κίτρινο  (ενεργό)
