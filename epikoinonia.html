@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Επικοινωνία — HAIR MANIA VALKANIS, Γιαννιτσά</title>
+<meta name="description" content="Στρατηγού Πλαστήρα Νικολάου 35, Γιαννιτσά 58100. Τηλέφωνα, email, χάρτης και ωράριο του HAIR MANIA VALKANIS.">
+<meta name="theme-color" content="#FFFFFF">
+<link rel="icon" href="assets/img/logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="contact">
+<a class="skip" href="#main" data-i18n="nav.skip"></a>
+<header class="hdr" data-header></header>
+
+<main id="main" class="section">
+  <div class="wrap">
+    <p class="eyebrow" data-i18n="ct.eyebrow"></p>
+    <h1 data-i18n="ct.h2"></h1>
+
+    <div class="grid contact-grid" style="margin-top:26px">
+      <div>
+        <div id="ct-tiles"></div>
+
+        <h3 style="margin-top:34px" data-i18n="hrs.eyebrow"></h3>
+        <div class="hours" data-hours></div>
+
+        <p style="margin-top:24px">
+          <a class="btn btn--accent btn--wide" href="rantevou.html" data-ico="scissors"><span data-i18n="nav.book"></span></a>
+        </p>
+      </div>
+
+      <div class="map">
+        <iframe id="ct-map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+                data-i18n-attr="title:ct.map_title" allowfullscreen></iframe>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="ftr" data-footer></footer>
+<nav class="bar" data-bar aria-label="Quick actions"></nav>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/app.js" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var b = CONFIG.business, t = HMV.t;
+
+  function tile(icon, k, v, href, ext) {
+    return '<a class="ctile" href="' + href + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>' +
+      HMV.icon(icon, 'ctile__ico') +
+      '<span><span class="ctile__k">' + k + '</span><br><span class="ctile__v">' + v + '</span></span></a>';
+  }
+
+  function render() {
+    var t = HMV.t;
+    var box = document.getElementById('ct-tiles');
+    if (!box) return;   /* η σελίδα δεν είναι πια στην οθόνη */
+    box.innerHTML =
+      tile('phone', t('ct.phone'),  HMV.fmtPhone(b.phones[0]), 'tel:' + HMV.telHref(b.phones[0])) +
+      tile('phone', t('ct.mobile'), HMV.fmtPhone(b.phones[1]), 'tel:' + HMV.telHref(b.phones[1])) +
+      tile('mail', t('ct.email'),  b.email, 'mailto:' + b.email) +
+      tile('pin', t('ct.address'),
+           b.address.street + '<br>' + b.address.postcode + ' ' + b.address.city,
+           HMV.mapsLink(), true);
+  }
+
+  document.getElementById('ct-map').src =
+    'https://www.google.com/maps?q=' + encodeURIComponent(b.mapsQuery) + '&hl=el&z=16&output=embed';
+
+  document.querySelectorAll('[data-ico]').forEach(function(x){ x.insertAdjacentHTML('afterbegin', HMV.icon(x.getAttribute('data-ico'))); });
+  render();
+  document.addEventListener('langchange', render);
+});
+</script>
+</body>
+</html>
