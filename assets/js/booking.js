@@ -77,14 +77,6 @@
     window.scrollTo({ top: Math.max(0, y), behavior: reduceMotion() ? 'auto' : 'smooth' });
     if (focusEl) setTimeout(function () { try { focusEl.focus({ preventScroll: true }); } catch (e) {} }, 420);
   }
-  /* Το επιλεγμένο chip ημέρας να μπαίνει στο οπτικό πεδίο της οριζόντιας λωρίδας. */
-  function centerDay(input) {
-    var lab = input && input.nextElementSibling;
-    if (!lab || !el.days.scrollWidth) return;
-    var want = lab.offsetLeft - (el.days.clientWidth - lab.offsetWidth) / 2;
-    el.days.scrollTo({ left: Math.max(0, want), behavior: reduceMotion() ? 'auto' : 'smooth' });
-  }
-
   function showErr(msg, cls) {
     el.err.hidden = !msg;
     el.err.className = 'hint ' + (cls || 'hint--err');
@@ -111,37 +103,101 @@
         renderSummary(); setStep(currentStep());
         if (S.date) loadSlots(); else renderDays();
         goToStep(S.date ? 3 : 2);
+        /* Ο χρήστης θα διαλέξει μέρα σε 2-3 δευτερόλεπτα· ως τότε έχουμε
+           ήδη φέρει τις ώρες της πιο πιθανής επιλογής. */
+        if (!S.date) prefetch(firstOpenDay(), findSvc(S.service));
       });
     });
   }
 
-  /* ---------------- 2. days ---------------- */
-  function renderDays() {
-    var D = H.days(), n = H.nowAthens(), html = '', firstOpen = null;
+  /* ---------------- 2. ημερολόγιο ---------------- */
+
+  /** Πρώτη και τελευταία επιτρεπτή ημερομηνία κράτησης. */
+  function windowBounds() {
+    var n = H.nowAthens();
+    return { min: n.iso, max: H.addDaysISO(n.iso, C.booking.daysAhead - 1) };
+  }
+  function bookable(d) {
+    var b = windowBounds();
+    return d >= b.min && d <= b.max && dayOpen(d);
+  }
+  /** Η πρώτη διαθέσιμη ημέρα μέσα στο παράθυρο. */
+  function firstOpenDay() {
+    var n = H.nowAthens();
     for (var i = 0; i < C.booking.daysAhead; i++) {
       var d = H.addDaysISO(n.iso, i);
-      var p = H.parseISO(d);
-      var open = dayOpen(d);
-      if (open && !firstOpen) firstOpen = d;
-      html += '<div class="day">' +
-        '<input type="radio" name="date" id="d-' + d + '" value="' + d + '"' +
-        (open ? '' : ' disabled') + (S.date === d ? ' checked' : '') + '>' +
-        '<label for="d-' + d + '">' +
-          '<span class="day__dow">' + D.short[H.dowOf(d)] + '</span>' +
-          '<span class="day__num">' + p.d + '</span>' +
-          '<span class="day__mon">' + D.months[p.m - 1] + '</span>' +
-        '</label></div>';
+      if (bookable(d)) return d;
     }
-    el.days.innerHTML = html;
+    return null;
+  }
+  function nextOpenDay(after) {
+    for (var i = 1; i <= C.booking.daysAhead; i++) {
+      var d = H.addDaysISO(after, i);
+      if (bookable(d)) return d;
+    }
+    return null;
+  }
+
+  function renderDays() {
+    var D = H.days(), n = H.nowAthens();
+    if (!S.view) S.view = { y: n.y, m: n.m };
+    var b = windowBounds();
+    var y = S.view.y, m = S.view.m;
+
+    /* Δευτέρα πρώτη, όπως συνηθίζεται στην Ελλάδα. */
+    var firstDow = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
+    var daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+
+    var prevOk = (y + '-' + H.pad(m)) > b.min.slice(0, 7);
+    var nextOk = (y + '-' + H.pad(m)) < b.max.slice(0, 7);
+
+    var cells = '';
+    for (var i = 0; i < firstDow; i++) cells += '<div class="cal__cell is-blank"></div>';
+    for (var day = 1; day <= daysInMonth; day++) {
+      var d = H.iso(y, m, day);
+      var ok = bookable(d);
+      cells += '<div class="cal__cell' + (d === n.iso ? ' is-today' : '') + '">' +
+        '<input type="radio" name="date" id="d-' + d + '" value="' + d + '"' +
+        (ok ? '' : ' disabled') + (S.date === d ? ' checked' : '') + '>' +
+        '<label for="d-' + d + '">' + day + '</label></div>';
+    }
+
+    el.days.innerHTML =
+      '<div class="cal">' +
+        '<div class="cal__hd">' +
+          '<button type="button" class="cal__nav" data-mv="-1"' + (prevOk ? '' : ' disabled') +
+            ' aria-label="' + t('cal.prev') + '">' + H.icon('left') + '</button>' +
+          '<b>' + (D.monthsNom || D.monthsLong)[m - 1] + ' ' + y + '</b>' +
+          '<button type="button" class="cal__nav" data-mv="1"' + (nextOk ? '' : ' disabled') +
+            ' aria-label="' + t('cal.next') + '">' + H.icon('right') + '</button>' +
+        '</div>' +
+        '<div class="cal__dow">' + [1, 2, 3, 4, 5, 6, 0].map(function (w) {
+          return '<span>' + D.short[w] + '</span>';
+        }).join('') + '</div>' +
+        '<div class="cal__grid">' + cells + '</div>' +
+        '<div class="cal__foot">' + t('cal.note') + '</div>' +
+      '</div>';
+
     H.fixGreekCaps(el.days);
-    el.days.querySelectorAll('input').forEach(function (inp) {
+
+    el.days.querySelectorAll('.cal__nav').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var mv = +btn.dataset.mv;
+        S.view.m += mv;
+        if (S.view.m < 1) { S.view.m = 12; S.view.y--; }
+        if (S.view.m > 12) { S.view.m = 1; S.view.y++; }
+        renderDays();
+      });
+    });
+
+    el.days.querySelectorAll('input[name="date"]').forEach(function (inp) {
       inp.addEventListener('change', function () {
         S.date = inp.value; S.time = null;
         renderSummary(); setStep(currentStep());
-        centerDay(inp);
         loadSlots(true);
       });
     });
+
     renderVacation();
   }
 
@@ -162,17 +218,49 @@
   }
 
   /* ---------------- 3. slots ---------------- */
+  /* Το Apps Script θέλει ~2s ανά κλήση. Δεν μπορούμε να το κάνουμε γρήγορο,
+     μπορούμε όμως να μην το περιμένει ο χρήστης: κρατάμε ό,τι φέραμε και
+     προφορτώνουμε την επόμενη πιθανή επιλογή στο παρασκήνιο. */
+  var slotCache = Object.create(null);
+  var CACHE_TTL = 60000;
+
+  function cacheKey(date, svcId) { return date + '|' + svcId; }
+
+  function fetchSlots(date, svcId, dur) {
+    var k = cacheKey(date, svcId);
+    var hit = slotCache[k];
+    if (hit && (Date.now() - hit.t) < CACHE_TTL) return Promise.resolve(hit.v);
+    var p = H.DEMO
+      ? Promise.resolve({ ok: true, slots: demoSlots(date, dur) })
+      : H.apiGet({ action: 'slots', date: date, service: svcId });
+    return p.then(function (res) {
+      if (res && res.ok) slotCache[k] = { t: Date.now(), v: res };
+      return res;
+    });
+  }
+
+  /** Φέρνει στο παρασκήνιο, χωρίς να αγγίξει την οθόνη. */
+  function prefetch(date, svc) {
+    if (!date || !svc) return;
+    var k = cacheKey(date, svc.id);
+    if (slotCache[k]) return;
+    fetchSlots(date, svc.id, svc.min).catch(function () {});
+  }
+
   function loadSlots(advance) {
     if (!S.date) { el.slots.innerHTML = ''; el.slotsMsg.hidden = false; el.slotsMsg.className = 'hint'; el.slotsMsg.textContent = t('bk.pickday'); return; }
     var svc = findSvc(S.service) || S.services[0];
     var token = ++S.loadToken;
 
-    el.slots.innerHTML = '<div class="spin" role="status" aria-live="polite"></div>';
+    var cached = slotCache[cacheKey(S.date, svc.id)];
+    var warm = cached && (Date.now() - cached.t) < CACHE_TTL;
+    if (!warm) {
+      el.slots.innerHTML = '<div class="sk" role="status" aria-live="polite" aria-label="' +
+        t('bk.loading') + '"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
+    }
     el.slotsMsg.hidden = true;
 
-    var p = H.DEMO
-      ? Promise.resolve({ ok: true, slots: demoSlots(S.date, svc.min) })
-      : H.apiGet({ action: 'slots', date: S.date, service: svc.id });
+    var p = fetchSlots(S.date, svc.id, svc.min);
 
     p.then(function (res) {
       if (token !== S.loadToken) return;
@@ -180,6 +268,8 @@
       S.slots = res.slots || [];
       renderSlots();
       if (advance) goToStep(3);
+      /* όσο διαλέγει ώρα, ετοιμάζουμε ήδη την επόμενη ανοιχτή μέρα */
+      prefetch(nextOpenDay(S.date), svc);
     }).catch(function () {
       if (token !== S.loadToken) return;
       el.slots.innerHTML = '';
@@ -196,7 +286,29 @@
       el.slots.innerHTML = '';
       el.slotsMsg.hidden = false;
       el.slotsMsg.className = 'hint hint--warn';
-      el.slotsMsg.textContent = dayOpen(S.date) ? t('bk.noslots') : t('bk.closedday');
+
+      /* Αδιέξοδο χωρίς έξοδο είναι κακή εμπειρία: αν η μέρα γέμισε ή πέρασε,
+         προσφέρουμε κατευθείαν την επόμενη διαθέσιμη — που την έχουμε ήδη
+         προφορτώσει, οπότε το άλμα είναι ακαριαίο. */
+      var nxt = nextOpenDay(S.date);
+      el.slotsMsg.innerHTML =
+        '<span>' + (dayOpen(S.date) ? t('bk.noslots') : t('bk.closedday')) + '</span>' +
+        (nxt ? ' <button type="button" class="btn btn--accent" id="bk-next-day" ' +
+               'style="margin-left:10px;padding:8px 14px;font-size:.7rem">' +
+               t('bk.jump') + ' ' + H.grUpper(H.fmtDateShort(nxt)) + '</button>' : '');
+      H.fixGreekCaps(el.slotsMsg);
+
+      var jump = document.getElementById('bk-next-day');
+      if (jump) jump.addEventListener('click', function () {
+        var inp = document.getElementById('d-' + nxt);
+        if (!inp) {                       /* είναι σε άλλον μήνα — γύρνα τη σελίδα */
+          var p = H.parseISO(nxt);
+          S.view = { y: p.y, m: p.m };
+          renderDays();
+          inp = document.getElementById('d-' + nxt);
+        }
+        if (inp) { inp.checked = true; inp.dispatchEvent(new Event('change', { bubbles: true })); }
+      });
       return;
     }
     el.slotsMsg.hidden = true;

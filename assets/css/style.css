@@ -343,7 +343,56 @@ legend .n { font-family: var(--ff-num); font-size: .72rem; font-weight: 400; let
 .opt input:checked + label .opt__s { color: inherit; opacity: .75; }
 .opt__p { font-family: var(--ff-num); font-size: 1rem; font-weight: 500; font-variant-numeric: tabular-nums; }
 
-/* λωρίδα ημερών */
+/* ---------- ημερολόγιο επιλογής ημέρας ---------- */
+.cal { border: var(--bw) solid var(--line); border-radius: var(--r); overflow: hidden; max-width: 460px; }
+.cal__hd { display: flex; align-items: center; gap: 8px; padding: 8px; border-bottom: var(--bw) solid var(--line); }
+.cal__hd b {
+  flex: 1; text-align: center; font-family: var(--ff-disp); font-weight: var(--disp-w);
+  text-transform: var(--disp-tt); letter-spacing: var(--disp-ls); font-size: 1.05rem;
+}
+.cal__nav {
+  width: 38px; height: 38px; flex: none; display: grid; place-items: center; cursor: pointer;
+  background: var(--bg); border: var(--bw) solid var(--line); border-radius: var(--r);
+}
+.cal__nav svg { width: 16px; height: 16px; }
+.cal__nav:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
+.cal__nav:disabled { opacity: .25; cursor: not-allowed; }
+.cal__dow { display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid var(--line-soft); }
+.cal__dow span {
+  text-align: center; padding: 7px 0; font-family: var(--ff-num);
+  font-size: .58rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+}
+.cal__grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.cal__cell { position: relative; min-height: 46px; }
+.cal__cell input { position: absolute; opacity: 0; width: 0; height: 0; }
+.cal__cell label,
+.cal__cell.is-blank {
+  display: grid; place-items: center; height: 100%; min-height: 46px;
+  border-right: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+  font-family: var(--ff-num); font-size: .94rem; font-variant-numeric: tabular-nums;
+}
+.cal__cell:nth-child(7n) label, .cal__cell:nth-child(7n).is-blank { border-right: 0; }
+.cal__cell label { cursor: pointer; transition: .12s; }
+.cal__cell label:hover { background: var(--surface); }
+.cal__cell input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: -2px; }
+.cal__cell input:checked + label { background: var(--accent); color: var(--on-accent); font-weight: 500; }
+.cal__cell input:disabled + label { color: var(--muted); opacity: .3; cursor: not-allowed; }
+.cal__cell.is-today label { box-shadow: inset 0 0 0 2px var(--line); }
+.cal__foot {
+  padding: 8px 10px; border-top: 1px solid var(--line-soft);
+  font-family: var(--ff-num); font-size: .62rem; color: var(--muted);
+}
+
+/* σκελετός φόρτωσης ωρών */
+.sk { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; }
+.sk i {
+  display: block; height: 44px; border: var(--bw) solid var(--line-soft); border-radius: var(--r);
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
+  background-size: 200% 100%; animation: shim 1.1s linear infinite;
+}
+@keyframes shim { to { background-position: -200% 0; } }
+
+/* λωρίδα ημερών (δεν χρησιμοποιείται πια — κρατιέται για συμβατότητα) */
 .days {
   display: flex; gap: 7px; overflow-x: auto; padding: 2px 2px 12px;
   scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;

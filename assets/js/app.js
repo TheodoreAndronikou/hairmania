@@ -68,7 +68,13 @@
   var TONOS = { 'Ά': 'Α', 'Έ': 'Ε', 'Ή': 'Η', 'Ί': 'Ι', 'Ό': 'Ο', 'Ύ': 'Υ', 'Ώ': 'Ω',
                 'Ϊ́': 'Ϊ', 'Ϋ́': 'Ϋ', '΅': '¨', '΄': '' };
   function grUpper(s) {
-    var out = String(s).toUpperCase();
+    /* Όταν ο τόνος πέφτει στο πρώτο φωνήεν διφθόγγου, στα κεφαλαία δεν
+       χάνεται απλώς — μετατρέπεται σε διαλυτικά στο δεύτερο φωνήεν,
+       αλλιώς η λέξη διαβάζεται λάθος:  Μάιος → ΜΑΪΟΣ, όχι ΜΑΙΟΣ. */
+    var out = String(s)
+      .replace(/άι/g, 'ΑΪ').replace(/άυ/g, 'ΑΫ').replace(/έι/g, 'ΕΪ')
+      .replace(/όι/g, 'ΟΪ').replace(/όυ/g, 'ΟΫ').replace(/ύι/g, 'ΥΪ');
+    out = out.toUpperCase();
     for (var k in TONOS) out = out.split(k).join(TONOS[k]);
     return out.replace(/́/g, '');
   }

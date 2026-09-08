@@ -119,6 +119,7 @@ function doGet(e) {
     if (a === 'slots')       return json_(slots_(e.parameter.date, e.parameter.service));
     if (a === 'appointment') return json_(appointment_(e.parameter.id, e.parameter.k));
     if (a === 'gallery')     return json_(gallery_());
+    if (a === 'flush')      return json_(flushCache_());
     if (a === 'ping')        return json_({ ok: true, tz: TZ, time: fmt_(new Date(), 'yyyy-MM-dd HH:mm') });
     return json_({ ok: false, error: 'UNKNOWN_ACTION' });
   } catch (err) {
@@ -144,7 +145,30 @@ function json_(o) {
 
 /* ============ ΡΥΘΜΙΣΕΙΣ ΑΠΟ ΤΟ SHEET ======================= */
 
-function readServices_() {
+/* Το διάβασμα του Sheet κοστίζει ~0,8s κάθε φορά. Υπηρεσίες και ωράριο
+   αλλάζουν ελάχιστα, οπότε τα κρατάμε σε cache. Όταν ο ιδιοκτήτης αλλάξει
+   τιμή ή ωράριο, φαίνεται μέσα σε CONFIG_TTL δευτερόλεπτα — ή αμέσως αν
+   ανοίξει το  …/exec?action=flush  */
+var CONFIG_TTL = 180;
+
+function cached_(key, producer) {
+  var c = CacheService.getScriptCache();
+  var hit = c.get(key);
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
+  var val = producer();
+  try { c.put(key, JSON.stringify(val), CONFIG_TTL); } catch (e) {}
+  return val;
+}
+
+function readServices_() { return cached_('svc_v1', readServicesRaw_); }
+function readHours_()    { return cached_('hrs_v1', readHoursRaw_); }
+
+function flushCache_() {
+  CacheService.getScriptCache().removeAll(['svc_v1', 'hrs_v1']);
+  return { ok: true, flushed: true };
+}
+
+function readServicesRaw_() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SH_SERVICES);
   if (!sh || sh.getLastRow() < 2) return [];
   return sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues()
@@ -155,7 +179,7 @@ function readServices_() {
     });
 }
 
-function readHours_() {
+function readHoursRaw_() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SH_HOURS);
   var out = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
   if (!sh || sh.getLastRow() < 2) return out;
