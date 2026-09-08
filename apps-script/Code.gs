@@ -207,12 +207,40 @@ function cell2hm_(v) {
 
 /* ============ BOOTSTRAP ==================================== */
 
+/**
+ * Τα κατειλημμένα διαστήματα όλου του παραθύρου κρατήσεων, σε ΜΙΑ κλήση.
+ *
+ * Γιατί: το Apps Script θέλει ~2s ανά κλήση ΚΑΙ βάζει τις ταυτόχρονες σε
+ * ουρά. Μία κλήση ανά ημέρα σήμαινε ότι ο πελάτης περίμενε σε κάθε πάτημα.
+ * Στέλνοντας τα διαστήματα μία φορά, ο browser υπολογίζει τις ώρες τοπικά
+ * και ακαριαία. Η τελική απόφαση παραμένει του server: το book_() ξαναελέγχει
+ * μέσα στο κλείδωμα, οπότε δεν χαλάει η προστασία από διπλοκράτηση.
+ *
+ * Στέλνουμε ΜΟΝΟ ώρες έναρξης/λήξης — ποτέ τίτλους ή στοιχεία πελατών.
+ */
+function busy_() {
+  var cal = calendar_();
+  var from = new Date();
+  var to = new Date(from.getTime() + (DAYS_AHEAD + 1) * 864e5);
+  var out = [];
+  cal.getEvents(from, to).forEach(function (ev) {
+    if (ev.isAllDayEvent()) return;          /* οι ολοήμερες πιάνονται από τα closures */
+    out.push([ev.getStartTime().getTime(), ev.getEndTime().getTime()]);
+  });
+  return out;
+}
+
 function bootstrap_() {
   return {
     ok: true,
     services: readServices_(),
     hours: readHours_(),
     closures: closures_(),
+    busy: busy_(),
+    serverNow: Date.now(),
+    leadMinutes: LEAD_MINUTES,
+    slotStep: SLOT_STEP,
+    daysAhead: DAYS_AHEAD,
     now: fmt_(new Date(), "yyyy-MM-dd'T'HH:mm"),
     tz: TZ
   };
@@ -231,17 +259,35 @@ function closures_() {
     });
 }
 
+/**
+ * Κεφαλαία ΧΩΡΙΣ τόνους, για σύγκριση.
+ * Κρίσιμο: ο ιδιοκτήτης θα γράψει «Κλειστά» ή «Διακοπές» όπως γράφει ένας
+ * άνθρωπος. Το σκέτο toUpperCase() δίνει «ΚΛΕΙΣΤΆ» και η σύγκριση αποτύγχανε
+ * σιωπηλά — δηλαδή το μαγαζί δεχόταν ραντεβού μέσα στις διακοπές του.
+ */
+function norm_(s) {
+  return String(s == null ? '' : s)
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim();
+}
+
 function isBlock_(title) {
-  var t = String(title || '').toUpperCase().trim();
+  var t = norm_(title);
   for (var i = 0; i < BLOCK_PREFIXES.length; i++) if (t.indexOf(BLOCK_PREFIXES[i]) === 0) return true;
   return false;
 }
+
 function cleanBlockTitle_(title) {
-  var t = String(title || '').trim();
+  var raw = String(title == null ? '' : title).trim();
+  var t = norm_(raw);
   for (var i = 0; i < BLOCK_PREFIXES.length; i++) {
-    if (t.toUpperCase().indexOf(BLOCK_PREFIXES[i]) === 0) return t.slice(BLOCK_PREFIXES[i].length).replace(/^[\s:—-]+/, '');
+    if (t.indexOf(BLOCK_PREFIXES[i]) === 0) {
+      return raw.slice(BLOCK_PREFIXES[i].length).replace(/^[\s:—–-]+/, '');
+    }
   }
-  return t;
+  return raw;
 }
 
 /* ============ ΔΙΑΘΕΣΙΜΕΣ ΩΡΕΣ ============================== */

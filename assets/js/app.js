@@ -390,6 +390,28 @@
     renderPrices: renderPrices, applyLang: applyLang, defaultBar: defaultBar
   };
 
+  /**
+   * Ξύπνημα του backend.
+   *
+   * Το Apps Script «κοιμάται» μετά από λίγη αδράνεια και η πρώτη κλήση μπορεί
+   * να θέλει 20-30 δευτερόλεπτα, ενώ οι επόμενες 2-3. Ο επισκέπτης όμως
+   * σχεδόν πάντα περνάει πρώτα από άλλη σελίδα: το ξυπνάμε από εκεί, ώστε
+   * όταν φτάσει στα ραντεβού να είναι ήδη ζεστό.
+   *
+   * Στη σελίδα ραντεβού ΔΕΝ το κάνουμε — εκεί τρέχει ήδη το bootstrap και
+   * δύο ταυτόχρονες κλήσεις μπαίνουν σε ουρά και αργούν χειρότερα.
+   */
+  function warmBackend() {
+    if (DEMO) return;
+    if ((document.body.dataset.page || '') === 'book') return;
+    try {
+      var last = +(sessionStorage.getItem('hmv_warm') || 0);
+      if (Date.now() - last < 120000) return;
+      sessionStorage.setItem('hmv_warm', String(Date.now()));
+    } catch (e) {}
+    apiGet({ action: 'ping' }).catch(function () {});
+  }
+
   function boot() {
     buildChrome();
     renderHours();
@@ -398,6 +420,7 @@
     renderStatus();
     fixGreekCaps();
     setInterval(renderStatus, 60000);
+    warmBackend();
 
     document.addEventListener('langchange', function () {
       renderHours(); renderPrices(); renderStatus();

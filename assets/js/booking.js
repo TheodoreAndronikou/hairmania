@@ -31,6 +31,7 @@
     hours: C.hours,
     closures: [],   /* [{from:'YYYY-MM-DD', to:'YYYY-MM-DD', title}] */
     slots: [],
+    busy: [], ready: false, pending: null,
     loadToken: 0,
     submitting: false,
     idem: null
@@ -103,9 +104,6 @@
         renderSummary(); setStep(currentStep());
         if (S.date) loadSlots(); else renderDays();
         goToStep(S.date ? 3 : 2);
-        /* Ο χρήστης θα διαλέξει μέρα σε 2-3 δευτερόλεπτα· ως τότε έχουμε
-           ήδη φέρει τις ώρες της πιο πιθανής επιλογής. */
-        if (!S.date) prefetch(firstOpenDay(), findSvc(S.service));
       });
     });
   }
@@ -218,66 +216,92 @@
   }
 
   /* ---------------- 3. slots ---------------- */
-  /* Το Apps Script θέλει ~2s ανά κλήση. Δεν μπορούμε να το κάνουμε γρήγορο,
-     μπορούμε όμως να μην το περιμένει ο χρήστης: κρατάμε ό,τι φέραμε και
-     προφορτώνουμε την επόμενη πιθανή επιλογή στο παρασκήνιο. */
-  var slotCache = Object.create(null);
-  var CACHE_TTL = 60000;
+  /**
+   * Υπολογισμός διαθέσιμων ωρών ΤΟΠΙΚΑ.
+   *
+   * Το Apps Script θέλει ~2s ανά κλήση και σειριοποιεί τις ταυτόχρονες, οπότε
+   * μία κλήση ανά ημέρα σήμαινε αναμονή σε κάθε πάτημα. Παίρνουμε τα
+   * κατειλημμένα διαστήματα μία φορά (bootstrap) και υπολογίζουμε εδώ.
+   * Ο server παραμένει η πηγή αλήθειας: ξαναελέγχει στην κράτηση.
+   */
+  function computeSlots(dateISO, svc) {
+    if (!dayOpen(dateISO)) return [];
+    var p = H.parseISO(dateISO);
+    var ranges = (S.hours[H.dowOf(dateISO)] || []);
+    var limit = Date.now() + (S.leadMinutes || C.booking.leadTimeMinutes) * 60000;
+    var step = S.slotStep || C.booking.slotStep;
+    var out = [];
 
-  function cacheKey(date, svcId) { return date + '|' + svcId; }
-
-  function fetchSlots(date, svcId, dur) {
-    var k = cacheKey(date, svcId);
-    var hit = slotCache[k];
-    if (hit && (Date.now() - hit.t) < CACHE_TTL) return Promise.resolve(hit.v);
-    var p = H.DEMO
-      ? Promise.resolve({ ok: true, slots: demoSlots(date, dur) })
-      : H.apiGet({ action: 'slots', date: date, service: svcId });
-    return p.then(function (res) {
-      if (res && res.ok) slotCache[k] = { t: Date.now(), v: res };
-      return res;
+    ranges.forEach(function (r) {
+      var from = H.hm2min(r[0]), to = H.hm2min(r[1]);
+      for (var m = from; m + svc.min <= to; m += step) {
+        var s = H.athens(p.y, p.m, p.d, Math.floor(m / 60), m % 60).getTime();
+        var e = s + svc.min * 60000;
+        if (s < limit) continue;
+        var free = true;
+        for (var b = 0; b < S.busy.length; b++) {
+          if (s < S.busy[b][1] && e > S.busy[b][0]) { free = false; break; }
+        }
+        if (free) out.push(H.min2hm(m));
+      }
     });
-  }
-
-  /** Φέρνει στο παρασκήνιο, χωρίς να αγγίξει την οθόνη. */
-  function prefetch(date, svc) {
-    if (!date || !svc) return;
-    var k = cacheKey(date, svc.id);
-    if (slotCache[k]) return;
-    fetchSlots(date, svc.id, svc.min).catch(function () {});
+    return out;
   }
 
   function loadSlots(advance) {
-    if (!S.date) { el.slots.innerHTML = ''; el.slotsMsg.hidden = false; el.slotsMsg.className = 'hint'; el.slotsMsg.textContent = t('bk.pickday'); return; }
+    if (!S.date) {
+      el.slots.innerHTML = '';
+      el.slotsMsg.hidden = false;
+      el.slotsMsg.className = 'hint';
+      el.slotsMsg.textContent = t('bk.pickday');
+      return;
+    }
     var svc = findSvc(S.service) || S.services[0];
-    var token = ++S.loadToken;
 
-    var cached = slotCache[cacheKey(S.date, svc.id)];
-    var warm = cached && (Date.now() - cached.t) < CACHE_TTL;
-    if (!warm) {
+    /* Όσο δεν έχει έρθει το bootstrap, δείχνουμε σκελετό. Μετά, ακαριαία. */
+    if (!S.ready) {
+      el.slotsMsg.hidden = true;
       el.slots.innerHTML = '<div class="sk" role="status" aria-live="polite" aria-label="' +
         t('bk.loading') + '"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
+      S.pending = { advance: advance };
+      clearTimeout(S.slowTimer);
+      S.slowTimer = setTimeout(function () {
+        if (S.ready) return;
+        el.slotsMsg.hidden = false;
+        el.slotsMsg.className = 'hint';
+        el.slotsMsg.textContent = t('bk.waking');
+      }, 3500);
+      return;
     }
+
+    /* Παλιά έκδοση backend (δεν στέλνει διαστήματα): γυρνάμε στην κλήση ανά
+       ημέρα. Αργή, αλλά ΣΩΣΤΗ — ποτέ δεν δείχνουμε ώρες που ίσως είναι πιασμένες. */
+    if (S.legacy) { loadSlotsRemote(advance); return; }
+
     el.slotsMsg.hidden = true;
+    S.slots = H.DEMO ? demoSlots(S.date, svc.min) : computeSlots(S.date, svc);
+    renderSlots();
+    if (advance) goToStep(3);
+  }
 
-    var p = fetchSlots(S.date, svc.id, svc.min);
+  function loadSlotsRemote(advance) {
+    var svc = findSvc(S.service) || S.services[0];
+    var token = ++S.loadToken;
+    el.slotsMsg.hidden = true;
+    el.slots.innerHTML = '<div class="sk" role="status" aria-live="polite"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
 
-    p.then(function (res) {
+    H.apiGet({ action: 'slots', date: S.date, service: svc.id }).then(function (res) {
       if (token !== S.loadToken) return;
       if (!res || !res.ok) throw new Error('bad');
       S.slots = res.slots || [];
       renderSlots();
       if (advance) goToStep(3);
-      /* όσο διαλέγει ώρα, ετοιμάζουμε ήδη την επόμενη ανοιχτή μέρα */
-      prefetch(nextOpenDay(S.date), svc);
     }).catch(function () {
       if (token !== S.loadToken) return;
       el.slots.innerHTML = '';
       el.slotsMsg.hidden = false;
       el.slotsMsg.className = 'hint hint--err';
-      el.slotsMsg.innerHTML = t('bk.loaderr') + ' <button type="button" class="btn btn--ghost" style="margin-left:10px;padding:6px 14px" id="bk-retry">' + t('bk.retry') + '</button>';
-      var r = document.getElementById('bk-retry');
-      if (r) r.addEventListener('click', loadSlots);
+      el.slotsMsg.textContent = t('bk.loaderr');
     });
   }
 
@@ -493,6 +517,8 @@
     };
     var icsText = window.ICS.build(ev);
 
+    S.busy.push([start.getTime(), end.getTime()]);
+
     el.wizard.hidden = true;
     el.done.hidden = false;
     el.done.innerHTML =
@@ -537,15 +563,37 @@
     renderServices(); renderDays(); renderSummary(); setStep(1);
     el.slotsMsg.hidden = false; el.slotsMsg.className = 'hint'; el.slotsMsg.textContent = t('bk.pickday');
 
-    if (!H.DEMO) {
-      H.apiGet({ action: 'bootstrap' }).then(function (res) {
-        if (!res || !res.ok) return;
-        if (res.services && res.services.length) { S.services = res.services; C.services = res.services; }
-        if (res.hours) { S.hours = res.hours; C.hours = res.hours; }
-        if (res.closures) S.closures = res.closures;
-        renderServices(); renderDays(); renderSummary(); H.renderPrices();
-      }).catch(function () { /* κρατάμε τα fallback του config.js */ });
-    }
+    if (H.DEMO) { S.ready = true; return; }
+
+    /* Η ΜΟΝΗ κλήση στον server σε όλη τη ροή επιλογής. */
+    H.apiGet({ action: 'bootstrap' }).then(function (res) {
+      if (!res || !res.ok) throw new Error('bootstrap');
+      if (res.services && res.services.length) { S.services = res.services; C.services = res.services; }
+      if (res.hours) { S.hours = res.hours; C.hours = res.hours; }
+      if (res.closures) S.closures = res.closures;
+      /* Ανιχνεύουμε αν ο server είναι η νέα έκδοση. */
+      if (Array.isArray(res.busy)) { S.busy = res.busy; S.legacy = false; }
+      else { S.legacy = true; console.warn("HMV: παλιό backend — οι ώρες θα φορτώνουν ανά ημέρα (αργά). Ανέβασε νέα έκδοση του Code.gs."); }
+      if (res.leadMinutes) S.leadMinutes = res.leadMinutes;
+      if (res.slotStep) S.slotStep = res.slotStep;
+      S.ready = true;
+      clearTimeout(S.slowTimer);
+
+      renderServices(); renderDays(); renderSummary(); H.renderPrices();
+      if (S.pending) { var pend = S.pending; S.pending = null; loadSlots(pend.advance); }
+    }).catch(function () {
+      /* Χωρίς τα διαστήματα δεν ξέρουμε τι είναι πιασμένο — καλύτερα να το
+         πούμε παρά να δείξουμε ώρες που ίσως δεν υπάρχουν. */
+      S.ready = false;
+      el.slots.innerHTML = '';
+      el.slotsMsg.hidden = false;
+      el.slotsMsg.className = 'hint hint--err';
+      el.slotsMsg.innerHTML = t('bk.loaderr') +
+        ' <button type="button" class="btn btn--ghost" style="margin-left:10px;padding:6px 14px" id="bk-retry">' +
+        t('bk.retry') + '</button>';
+      var r = document.getElementById('bk-retry');
+      if (r) r.addEventListener('click', function () { location.reload(); });
+    });
   }
 
   document.addEventListener('langchange', function () {
