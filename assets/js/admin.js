@@ -27,6 +27,8 @@
   var panel = document.getElementById('panel');
   var sheet = document.getElementById('sheet');
   var day = H.nowAthens().iso;
+  var view = 'day';          /* day | week */
+  var week = null;           /* {days:[iso], data:{iso:res}} */
   var pin = '';
   var data = null;
   var loadSeq = 0;
@@ -97,20 +99,52 @@
   function load() {
     var seq = ++loadSeq;
     setBusy(true);
-    DB.adminDay(pin, day).then(function (res) {
+
+    if (view === 'day') {
+      DB.adminDay(pin, day).then(function (res) {
+        if (seq !== loadSeq) return;
+        setBusy(false);
+        if (!res || !res.ok) { fail(res && res.error === 'BAD_PIN' ? 'Ο κωδικός δεν ισχύει πια' : 'Δεν φόρτωσε'); return; }
+        data = res; paint();
+      }).catch(function () {
+        if (seq !== loadSeq) return;
+        setBusy(false); fail('Δεν φόρτωσε — έλεγξε το ίντερνετ');
+      });
+      return;
+    }
+
+    /* Επτά κλήσεις παράλληλα. Η βάση τις εξυπηρετεί ταυτόχρονα — συνολικά
+       όσο περίπου και μία. (Με το Apps Script αυτό ήταν αδιανόητο.) */
+    var days = [], w0 = weekStart(day);
+    for (var i = 0; i < 7; i++) days.push(H.addDaysISO(w0, i));
+
+    Promise.all(days.map(function (d) { return DB.adminDay(pin, d); })).then(function (all) {
       if (seq !== loadSeq) return;
       setBusy(false);
-      if (!res || !res.ok) { fail(res && res.error === 'BAD_PIN' ? 'Ο κωδικός δεν ισχύει πια' : 'Δεν φόρτωσε'); return; }
-      data = res; paint();
+      var bad = all.filter(function (r) { return !r || !r.ok; })[0];
+      if (bad) { failWeek(bad.error === 'BAD_PIN' ? 'Ο κωδικός δεν ισχύει πια' : 'Δεν φόρτωσε'); return; }
+      week = { days: days, data: {} };
+      days.forEach(function (d, i) { week.data[d] = all[i]; });
+      paintWeek();
     }).catch(function () {
       if (seq !== loadSeq) return;
-      setBusy(false); fail('Δεν φόρτωσε — έλεγξε το ίντερνετ');
+      setBusy(false); failWeek('Δεν φόρτωσε — έλεγξε το ίντερνετ');
     });
+  }
+
+  function failWeek(msg) {
+    document.getElementById('adm-sub').textContent = '';
+    document.getElementById('adm-week').innerHTML =
+      '<div class="adm__empty">' + msg +
+      '<br><button class="btn btn--ghost" id="wk-retry" style="margin-top:12px;padding:8px 16px;font-size:.7rem">ΔΟΚΙΜΑΣΕ ΞΑΝΑ</button></div>';
+    var r = document.getElementById('wk-retry');
+    if (r) r.addEventListener('click', load);
   }
 
   function setBusy(on) {
     if (on) document.getElementById('adm-sub').textContent = 'Φόρτωση…';
     document.getElementById('adm-list').style.opacity = on ? '.4' : '1';
+    document.getElementById('adm-week').style.opacity = on ? '.4' : '1';
     ['adm-walkin', 'adm-block', 'adm-closeday'].forEach(function (id) {
       document.getElementById(id).disabled = on;
     });
@@ -124,14 +158,151 @@
     if (r) r.addEventListener('click', load);
   }
 
-  document.getElementById('adm-prev').addEventListener('click', function () { day = H.addDaysISO(day, -1); paintHeader(); load(); });
-  document.getElementById('adm-next').addEventListener('click', function () { day = H.addDaysISO(day, 1); paintHeader(); load(); });
+  function step(n) {
+    day = H.addDaysISO(day, view === 'week' ? n * 7 : n);
+    paintHeader(); load();
+  }
+  document.getElementById('adm-prev').addEventListener('click', function () { step(-1); });
+  document.getElementById('adm-next').addEventListener('click', function () { step(1); });
+
+  document.getElementById('adm-today').addEventListener('click', function () {
+    day = H.nowAthens().iso; paintHeader(); load();
+  });
+
+  /* Η ημερομηνία πατιέται: ανοίγει τον επιλογέα του λειτουργικού.
+     showPicker() δεν υπάρχει παντού — αλλιώς εστιάζουμε το πεδίο. */
+  var jump = document.getElementById('adm-jump');
+  document.getElementById('adm-date').addEventListener('click', function () {
+    jump.value = day;
+    try { jump.showPicker(); }
+    catch (e) { jump.style.pointerEvents = 'auto'; jump.style.opacity = '1'; jump.focus(); jump.click(); }
+  });
+  jump.addEventListener('change', function () {
+    if (!jump.value) return;
+    day = jump.value;
+    jump.style.pointerEvents = ''; jump.style.opacity = '';
+    paintHeader(); load();
+  });
+
+  /* ---------- καρτέλες ---------- */
+  function setView(v) {
+    view = v;
+    document.getElementById('tab-day').setAttribute('aria-selected', String(v === 'day'));
+    document.getElementById('tab-week').setAttribute('aria-selected', String(v === 'week'));
+    document.getElementById('adm-list').hidden = v !== 'day';
+    document.getElementById('adm-week').hidden = v !== 'week';
+    document.querySelector('.adm__actions').hidden = v !== 'day';
+    paintHeader(); load();
+  }
+  document.getElementById('tab-day').addEventListener('click', function () { if (view !== 'day') setView('day'); });
+  document.getElementById('tab-week').addEventListener('click', function () { if (view !== 'week') setView('week'); });
+
+  /** Δευτέρα της εβδομάδας στην οποία ανήκει η ημερομηνία. */
+  function weekStart(iso) {
+    var dow = (H.dowOf(iso) + 6) % 7;          /* 0 = Δευτέρα */
+    return H.addDaysISO(iso, -dow);
+  }
 
   /* ---------- εμφάνιση ---------- */
   function paintHeader() {
-    var D = H.days(), p = H.parseISO(day);
-    document.getElementById('adm-date').textContent =
-      H.grUpper(D.long[H.dowOf(day)] + ' ' + p.d + ' ' + D.monthsLong[p.m - 1]);
+    var D = H.days(), el = document.getElementById('adm-date');
+    if (view === 'week') {
+      var a0 = weekStart(day), a1 = H.addDaysISO(a0, 6);
+      var p0 = H.parseISO(a0), p1 = H.parseISO(a1);
+      el.textContent = H.grUpper(
+        p0.m === p1.m
+          ? p0.d + '–' + p1.d + ' ' + D.monthsLong[p1.m - 1]
+          : p0.d + ' ' + D.months[p0.m - 1] + ' – ' + p1.d + ' ' + D.months[p1.m - 1]);
+    } else {
+      var p = H.parseISO(day);
+      el.textContent = H.grUpper(D.long[H.dowOf(day)] + ' ' + p.d + ' ' + D.monthsLong[p.m - 1]);
+    }
+  }
+
+  /* ---------- εβδομαδιαία εικόνα ---------- */
+  function paintWeek() {
+    paintHeader();
+    if (!week) return;
+    var D = H.days(), n = H.nowAthens(), step = (C.booking && C.booking.slotStep) || 30;
+
+    /* Το πλέγμα καλύπτει από το νωρίτερο άνοιγμα ως το αργότερο κλείσιμο
+       της εβδομάδας — όχι όλο το 24ωρο, που θα ήταν άχρηστο σκρολάρισμα. */
+    var lo = 24 * 60, hi = 0, total = 0;
+    week.days.forEach(function (d) {
+      (week.data[d].hours || []).forEach(function (r) {
+        lo = Math.min(lo, H.hm2min(r[0]));
+        hi = Math.max(hi, H.hm2min(r[1]));
+      });
+      total += (week.data[d].items || []).filter(function (x) { return !x.block; }).length;
+    });
+    if (hi <= lo) { lo = 9 * 60; hi = 21 * 60; }
+
+    document.getElementById('adm-sub').textContent = total + ' ραντεβού τη βδομάδα';
+
+    var rows = Math.ceil((hi - lo) / step);
+    var html = '<div class="wk"><div class="wk__grid">';
+
+    html += '<div class="wk__hd"></div>';
+    week.days.forEach(function (d) {
+      var p = H.parseISO(d), closed = week.data[d].closed !== null || !(week.data[d].hours || []).length;
+      html += '<div class="wk__hd' + (d === n.iso ? ' is-today' : '') + (closed ? ' is-closed' : '') + '">' +
+        D.short[H.dowOf(d)] + '<b>' + p.d + '</b></div>';
+    });
+
+    for (var r = 0; r < rows; r++) {
+      var m = lo + r * step;
+      html += '<div class="wk__time" style="grid-row:' + (r + 2) + '">' +
+              (m % 60 === 0 ? H.min2hm(m) : '') + '</div>';
+    }
+
+    week.days.forEach(function (d, col) {
+      var day_ = week.data[d];
+      var open = (day_.hours || []);
+      var closed = day_.closed !== null || !open.length;
+
+      for (var r = 0; r < rows; r++) {
+        var m = lo + r * step;
+        var inHours = !closed && open.some(function (x) {
+          return m >= H.hm2min(x[0]) && m < H.hm2min(x[1]);
+        });
+        html += '<div class="wk__cell' + (inHours ? '' : ' is-off') + '"' +
+                ' style="grid-column:' + (col + 2) + ';grid-row:' + (r + 2) + '"' +
+                (inHours ? ' data-go="' + d + '"' : '') + '></div>';
+      }
+
+      (day_.items || []).forEach(function (it) {
+        var start = H.hm2min(it.time);
+        var r0 = Math.round((start - lo) / step);
+        if (r0 < 0 || r0 >= rows) return;
+        var span = Math.max(1, Math.round(it.min / step));
+        if (r0 + span > rows) span = rows - r0;
+        html += '<div class="wk__ev' + (it.block ? ' wk__ev--block' : (it.online ? ' wk__ev--online' : '')) + '"' +
+          ' style="grid-column:' + (col + 2) + ';grid-row:' + (r0 + 2) + '/span ' + span + '"' +
+          ' data-id="' + esc(it.id) + '" data-day="' + d + '">' +
+          '<b>' + (it.block ? 'ΜΠΛΟΚΟ' : (esc(it.name) || '—')) + '</b>' +
+          '<small>' + esc(it.time) + '</small></div>';
+      });
+    });
+
+    html += '</div><div class="wk__legend">' +
+      '<span><i style="background:var(--accent)"></i>online</span>' +
+      '<span><i style="background:var(--invert-bg)"></i>με το χέρι</span>' +
+      '<span><i style="background:var(--surface-2);border:1px dashed var(--line-soft)"></i>μπλοκάρισμα</span>' +
+      '<span>Πάτα κενό κελί για να πας σε εκείνη τη μέρα</span></div></div>';
+
+    var host = document.getElementById('adm-week');
+    host.innerHTML = html;
+    H.fixGreekCaps(host);
+
+    host.querySelectorAll('[data-go]').forEach(function (c) {
+      c.addEventListener('click', function () { day = c.dataset.go; setView('day'); });
+    });
+    host.querySelectorAll('.wk__ev').forEach(function (e) {
+      e.addEventListener('click', function () {
+        day = e.dataset.day;
+        setView('day');       /* η ακύρωση γίνεται από την ημερήσια όψη */
+      });
+    });
   }
 
   function paint() {

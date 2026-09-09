@@ -33,16 +33,24 @@
 
     <!-- ΠΙΝΑΚΑΣ -->
     <div id="panel" hidden>
+      <div class="adm__tabs" role="tablist">
+        <button class="adm__tab" id="tab-day" role="tab" aria-selected="true">ΜΕΡΑ</button>
+        <button class="adm__tab" id="tab-week" role="tab" aria-selected="false">ΕΒΔΟΜΑΔΑ</button>
+        <button class="adm__today" id="adm-today">ΣΗΜΕΡΑ</button>
+      </div>
+
       <div class="adm__top">
-        <div>
-          <div class="adm__date" id="adm-date"></div>
+        <div class="adm__pick">
+          <button class="adm__date" id="adm-date" aria-label="Άλλαξε ημερομηνία"></button>
+          <input type="date" id="adm-jump" aria-label="Επιλογή ημερομηνίας">
           <div class="adm__sub" id="adm-sub"></div>
         </div>
-        <button class="cal__nav" id="adm-prev" aria-label="Προηγούμενη μέρα"></button>
-        <button class="cal__nav" id="adm-next" aria-label="Επόμενη μέρα"></button>
+        <button class="cal__nav" id="adm-prev" aria-label="Προηγούμενο"></button>
+        <button class="cal__nav" id="adm-next" aria-label="Επόμενο"></button>
       </div>
 
       <div id="adm-list"></div>
+      <div id="adm-week" hidden></div>
 
       <div class="adm__actions">
         <button class="btn btn--accent btn--wide" id="adm-walkin">+ ΝΕΟ ΡΑΝΤΕΒΟΥ</button>
