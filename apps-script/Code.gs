@@ -38,7 +38,7 @@ var SLOT_STEP           = 30;   /* λεπτά */
 var LEAD_MINUTES        = 60;   /* πόσο πριν κλείνει η online κράτηση */
 var DAYS_AHEAD          = 21;
 var CANCEL_CUTOFF_HOURS = 2;
-var BLOCK_PREFIXES      = ['ΚΛΕΙΣΤΑ', 'KΛΕΙΣΤΑ', 'CLOSED', 'ΑΔΕΙΑ', 'ΔΙΑΚΟΠΕΣ'];
+var BLOCK_PREFIXES      = ['ΚΛΕΙΣΤΑ', 'KΛΕΙΣΤΑ', 'CLOSED', 'ΑΔΕΙΑ', 'ΔΙΑΚΟΠΕΣ', 'ΡΕΠΟ', 'ΜΠΛΟΚΟ'];
 
 var SH_HOURS = 'Ωράριο', SH_SERVICES = 'Υπηρεσίες', SH_LOG = 'Ραντεβού';
 var DOW_NAMES = ['Κυριακή', 'Δευτέρα', 'Τρίτη', 'Τετάρτη', 'Πέμπτη', 'Παρασκευή', 'Σάββατο'];
@@ -110,6 +110,115 @@ function calendar_() {
   return CALENDAR_ID ? CalendarApp.getCalendarById(CALENDAR_ID) : CalendarApp.getDefaultCalendar();
 }
 
+/**
+ * Κωδικός διαχειριστικού. Ελέγχεται ΕΔΩ, στον server — όχι στον browser.
+ * Άλλαξέ τον πριν τον δώσεις στον ιδιοκτήτη.
+ */
+var ADMIN_PIN = '1234';
+
+function adminOk_(pin) { return String(pin || '') === ADMIN_PIN; }
+
+/** Τα πάντα μιας ημέρας, όπως τα βλέπει ο ιδιοκτήτης. */
+function adminDay_(dateStr, pin) {
+  if (!adminOk_(pin)) return { ok: false, error: 'BAD_PIN' };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateStr || ''))) return { ok: false, error: 'BAD_DATE' };
+
+  var d = ymd_(dateStr);
+  var from = new Date(d.y, d.m - 1, d.d, 0, 0, 0);
+  var to = new Date(d.y, d.m - 1, d.d, 23, 59, 59);
+
+  var items = [], closedAllDay = null;
+  calendar_().getEvents(from, to).forEach(function (ev) {
+    var title = ev.getTitle();
+    if (ev.isAllDayEvent()) {
+      if (isBlock_(title)) closedAllDay = cleanBlockTitle_(title) || '';
+      return;
+    }
+    var desc = String(ev.getDescription() || '');
+    var isBlk = isBlock_(title) || title.indexOf('ΜΠΛΟΚΟ') === 0;
+    items.push({
+      id: ev.getId(),
+      time: fmt_(ev.getStartTime(), 'HH:mm'),
+      min: Math.round((ev.getEndTime() - ev.getStartTime()) / 60000),
+      block: isBlk,
+      title: isBlk ? cleanBlockTitle_(title.replace(/^ΜΠΛΟΚΟ\s*[—–-]?\s*/, '')) : title,
+      name: (desc.match(/Πελάτης:\s*(.+)/) || [, ''])[1].trim(),
+      service: (desc.match(/Υπηρεσία:\s*([^(\n]+)/) || [, ''])[1].trim(),
+      phone: (desc.match(/Τηλέφωνο:\s*(\d+)/) || [, ''])[1],
+      online: desc.indexOf('Κλείστηκε online') >= 0
+    });
+  });
+  items.sort(function (a, b) { return a.time < b.time ? -1 : 1; });
+
+  return { ok: true, date: dateStr, items: items, closed: closedAllDay,
+           hours: readHours_()[new Date(d.y, d.m - 1, d.d).getDay()] || [] };
+}
+
+/** Ραντεβού που γράφει ο ίδιος (walk-in ή τηλέφωνο). */
+function adminAdd_(b) {
+  if (!adminOk_(b.pin)) return { ok: false, error: 'BAD_PIN' };
+  var svcs = readServices_(), svc = null;
+  for (var i = 0; i < svcs.length; i++) if (svcs[i].id === b.serviceId) svc = svcs[i];
+  if (!svc) return { ok: false, error: 'BAD_SERVICE' };
+
+  var d = ymd_(b.date), hm = String(b.time).split(':');
+  var start = new Date(d.y, d.m - 1, d.d, +hm[0], +hm[1], 0);
+  var end = new Date(start.getTime() + svc.min * 60000);
+  var name = clean_(b.name, 80) || 'Πελάτης';
+  var phone = String(b.phone || '').replace(/[^\d]/g, '');
+
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(20000); } catch (e) { return { ok: false, error: 'BUSY' }; }
+  try {
+    var ev = calendar_().createEvent(
+      '✂ ' + name + ' — ' + svc.el + (phone ? ' — ' + phone : ''),
+      start, end,
+      { description: 'Υπηρεσία: ' + svc.el + ' (' + svc.min + ' λεπτά, ' + svc.price + '€)\n' +
+                     'Πελάτης: ' + name + '\n' + (phone ? 'Τηλέφωνο: ' + phone + '\n' : '') +
+                     'Καταχωρήθηκε από το κατάστημα: ' + fmt_(new Date(), 'dd/MM/yyyy HH:mm'),
+        location: addressText_() });
+    logRow_([new Date(), b.date, b.time, svc.el, svc.min, svc.price, name, phone, '', 'από κατάστημα', 'Ενεργό', '', ev.getId()]);
+    return { ok: true, id: ev.getId() };
+  } finally { lock.releaseLock(); }
+}
+
+/** Μπλοκάρισμα ωρών — π.χ. συνεργείο. */
+function adminBlock_(b) {
+  if (!adminOk_(b.pin)) return { ok: false, error: 'BAD_PIN' };
+  var d = ymd_(b.date), hm = String(b.time).split(':');
+  var start = new Date(d.y, d.m - 1, d.d, +hm[0], +hm[1], 0);
+  var end = new Date(start.getTime() + (Number(b.min) || 30) * 60000);
+  var note = clean_(b.note, 60);
+  var ev = calendar_().createEvent('ΜΠΛΟΚΟ' + (note ? ' — ' + note : ''), start, end,
+    { description: 'Μπλοκαρισμένο από το διαχειριστικό.' });
+  return { ok: true, id: ev.getId() };
+}
+
+/** Διακοπές / ρεπό — ένα ολοήμερο event για όλο το διάστημα. */
+function adminClose_(b) {
+  if (!adminOk_(b.pin)) return { ok: false, error: 'BAD_PIN' };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(b.from || '')) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(String(b.to || ''))) return { ok: false, error: 'BAD_DATE' };
+
+  var f = ymd_(b.from), t = ymd_(b.to);
+  var start = new Date(f.y, f.m - 1, f.d);
+  var endExclusive = new Date(t.y, t.m - 1, t.d + 1);   /* το Calendar θέλει επόμενη μέρα */
+  var note = clean_(b.note, 60);
+  var ev = calendar_().createAllDayEvent('ΚΛΕΙΣΤΑ' + (note ? ' — ' + note : ''), start, endExclusive);
+  return { ok: true, id: ev.getId() };
+}
+
+function adminDelete_(b) {
+  if (!adminOk_(b.pin)) return { ok: false, error: 'BAD_PIN' };
+  try {
+    var ev = calendar_().getEventById(b.id);
+    if (!ev) return { ok: false, error: 'NOT_FOUND' };
+    markCancelled_(b.id);
+    ev.deleteEvent();
+    return { ok: true };
+  } catch (e) { return { ok: false, error: 'NOT_FOUND' }; }
+}
+
 /* ============ ROUTER ======================================= */
 
 function doGet(e) {
@@ -119,6 +228,7 @@ function doGet(e) {
     if (a === 'slots')       return json_(slots_(e.parameter.date, e.parameter.service));
     if (a === 'appointment') return json_(appointment_(e.parameter.id, e.parameter.k));
     if (a === 'gallery')     return json_(gallery_());
+    if (a === 'adminday')    return json_(adminDay_(e.parameter.date, e.parameter.pin));
     if (a === 'flush')      return json_(flushCache_());
     if (a === 'ping')        return json_({ ok: true, tz: TZ, time: fmt_(new Date(), 'yyyy-MM-dd HH:mm') });
     return json_({ ok: false, error: 'UNKNOWN_ACTION' });
@@ -133,6 +243,10 @@ function doPost(e) {
   try {
     if (body.action === 'book')   return json_(book_(body));
     if (body.action === 'cancel') return json_(cancel_(body.id, body.k));
+    if (body.action === 'adminAdd')    return json_(adminAdd_(body));
+    if (body.action === 'adminBlock')  return json_(adminBlock_(body));
+    if (body.action === 'adminClose')  return json_(adminClose_(body));
+    if (body.action === 'adminDelete') return json_(adminDelete_(body));
     return json_({ ok: false, error: 'UNKNOWN_ACTION' });
   } catch (err) {
     return json_({ ok: false, error: 'SERVER', detail: String(err) });

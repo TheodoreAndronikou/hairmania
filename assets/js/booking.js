@@ -224,39 +224,12 @@
    * κατειλημμένα διαστήματα μία φορά (bootstrap) και υπολογίζουμε εδώ.
    * Ο server παραμένει η πηγή αλήθειας: ξαναελέγχει στην κράτηση.
    */
-  /**
-   * ΠΡΟΣΩΡΙΝΗ ΓΕΦΥΡΑ ΜΕ ΤΟ ΔΙΑΧΕΙΡΙΣΤΙΚΟ.
-   *
-   * Το διαχειριστικό γράφει σε localStorage του ίδιου κινητού. Χωρίς αυτό,
-   * ό,τι καταχωρεί ο ιδιοκτήτης δεν θα φαινόταν στη δημόσια σελίδα και η
-   * επίδειξη θα έδειχνε ασυνεπής. Με την πραγματική βάση, αυτά έρχονται
-   * από τον server και η συνάρτηση φεύγει.
-   */
-  function localAdminBusy() {
-    var out = [];
-    try {
-      var d = JSON.parse(localStorage.getItem('hmv_admin_v1') || '{}');
-      (d.appts || []).concat(d.blocks || []).forEach(function (x) {
-        if (!x.date || !x.time) return;
-        var p = H.parseISO(x.date), hm = x.time.split(':');
-        var s = H.athens(p.y, p.m, p.d, +hm[0], +hm[1]).getTime();
-        out.push([s, s + (x.min || 30) * 60000]);
-      });
-      (d.closed || []).forEach(function (iso) {
-        var p = H.parseISO(iso);
-        var s = H.athens(p.y, p.m, p.d, 0, 0).getTime();
-        out.push([s, s + 24 * 3600000]);
-      });
-    } catch (e) {}
-    return out;
-  }
-
   function computeSlots(dateISO, svc) {
     if (!dayOpen(dateISO)) return [];
     var p = H.parseISO(dateISO);
     var ranges = (S.hours[H.dowOf(dateISO)] || []);
     var limit = Date.now() + (S.leadMinutes || C.booking.leadTimeMinutes) * 60000;
-    var busy = S.busy.concat(localAdminBusy());
+    var busy = S.busy;
     var step = S.slotStep || C.booking.slotStep;
     var out = [];
 
@@ -596,6 +569,33 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  /**
+   * Το στιγμιότυπο είναι γρήγορο αλλά παγωμένο. Ζητάμε τα ζωντανά από
+   * πίσω και διορθώνουμε αθόρυβα όταν έρθουν: ο επισκέπτης βλέπει ώρες
+   * αμέσως, και σωστές ώρες λίγα δευτερόλεπτα μετά. Αν στο μεταξύ κάτι
+   * προλάβει να πιαστεί, ο server το απορρίπτει στην κράτηση.
+   */
+  function refreshLive() {
+    H.apiGet({ action: 'bootstrap' }).then(function (res) {
+      if (!res || !res.ok || !Array.isArray(res.busy)) return;
+      S.busy = res.busy;
+      if (res.closures) S.closures = res.closures;
+      renderDays();
+      if (S.date) {
+        var keep = S.time;
+        loadSlots();
+        if (keep) reselect(keep);
+      }
+    }).catch(function () { /* μένουμε στο στιγμιότυπο */ });
+  }
+
+  /** Κρατάμε την ώρα που είχε ήδη διαλέξει — αν υπάρχει ακόμα. */
+  function reselect(time) {
+    var inp = document.getElementById('t-' + time);
+    if (inp) { inp.checked = true; S.time = time; renderSummary(); }
+    else { S.time = null; renderSummary(); showErr(t('bk.taken'), 'hint--warn'); }
+  }
+
   /* ---------------- bootstrap ---------------- */
   function init() {
     renderServices(); renderDays(); renderSummary(); setStep(1);
@@ -625,6 +625,7 @@
 
       renderServices(); renderDays(); renderSummary(); H.renderPrices();
       if (S.pending) { var pend = S.pending; S.pending = null; loadSlots(pend.advance); }
+      if (C.DATA_URL) refreshLive();
     }).catch(function () {
       /* Χωρίς τα διαστήματα δεν ξέρουμε τι είναι πιασμένο — καλύτερα να το
          πούμε παρά να δείξουμε ώρες που ίσως δεν υπάρχουν. */
