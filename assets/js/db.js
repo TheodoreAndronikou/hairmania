@@ -87,6 +87,11 @@
     },
 
     adminReopen: function (pin, dateISO) { return rpc('admin_reopen', { p_pin: pin, p_date: dateISO }); },
-    adminDelete: function (pin, id) { return rpc('admin_delete', { p_pin: pin, p_id: id }); }
+    adminDelete: function (pin, id) { return rpc('admin_delete', { p_pin: pin, p_id: id }); },
+
+    /** Ακύρωση ραντεβού ΜΕ ειδοποίηση του πελάτη (και προαιρετική αιτία). */
+    adminCancel: function (pin, id, reason) {
+      return rpc('admin_cancel', { p_pin: pin, p_id: id, p_reason: reason || '' }, 20000);
+    }
   };
 })();

@@ -312,17 +312,58 @@
       });
   });
 
+  /**
+   * Δύο διαφορετικές πράξεις, σκόπιμα ξεχωριστές:
+   *  - μπλοκάρισμα -> απλή αφαίρεση, κανείς δεν περιμένει
+   *  - ραντεβού    -> υπάρχει άνθρωπος απέναντι. Τον ειδοποιούμε, και του
+   *                   λέμε να σβήσει και τη δική του εγγραφή, γιατί στο
+   *                   ημερολόγιο του κινητού του δεν φτάνουμε.
+   */
   function askDelete(label, id) {
-    openSheet('Διαγραφή',
-      '<p style="margin-top:0">Να διαγραφεί;</p>' +
-      '<p style="font-weight:600;margin-bottom:18px">' + esc(label) + '</p>' +
+    var item = data.items.filter(function (x) { return x.id === id; })[0] || {};
+
+    if (item.block) {
+      openSheet('Αφαίρεση μπλοκαρίσματος',
+        '<p style="margin-top:0">Να ελευθερωθεί η ώρα;</p>' +
+        '<p style="font-weight:600;margin-bottom:18px">' + esc(label) + '</p>' +
+        '<div style="display:grid;gap:8px">' +
+          '<button class="btn btn--wide" id="d-yes" style="background:var(--err);color:#fff;border-color:var(--err)">ΑΦΑΙΡΕΣΗ</button>' +
+          '<button class="btn btn--ghost btn--wide" id="d-no">ΑΚΥΡΟ</button>' +
+        '</div>',
+        function () {
+          var yes = document.getElementById('d-yes');
+          yes.addEventListener('click', function () {
+            run(yes, function () { return DB.adminCancel(pin, id, ''); });
+          });
+          document.getElementById('d-no').addEventListener('click', closeSheet);
+        });
+      return;
+    }
+
+    var hasEmail = !!item.email;
+    openSheet('Ακύρωση ραντεβού',
+      '<p style="margin-top:0">Ακύρωση του ραντεβού:</p>' +
+      '<p style="font-weight:600;font-size:1.05rem;margin-bottom:16px">' + esc(label) + '</p>' +
+      (hasEmail
+        ? '<p class="hint" style="display:block;margin-bottom:14px"><b>Θα σταλεί email στον πελάτη</b> ' +
+          'ότι ακυρώθηκε, μαζί με υπενθύμιση να το σβήσει και από το ημερολόγιο του κινητού του.</p>'
+        : '<p class="hint hint--warn" style="display:block;margin-bottom:14px"><b>Δεν έχει δώσει email.</b> ' +
+          'Δεν θα ειδοποιηθεί αυτόματα — ' +
+          (item.phone ? 'πάρε τον τηλέφωνο πρώτα.' : 'δεν άφησε ούτε τηλέφωνο.') + '</p>') +
+      '<div class="field"><label for="d-why">Αιτία (μπαίνει στο email)</label>' +
+      '<input id="d-why" type="text" placeholder="π.χ. έκτακτο κώλυμα, θα επικοινωνήσω"></div>' +
       '<div style="display:grid;gap:8px">' +
-        '<button class="btn btn--wide" id="d-yes" style="background:var(--err);color:#fff;border-color:var(--err)">ΔΙΑΓΡΑΦΗ</button>' +
-        '<button class="btn btn--ghost btn--wide" id="d-no">ΑΚΥΡΟ</button>' +
+        (item.phone ? '<a class="btn btn--ghost btn--wide" href="tel:+30' + esc(item.phone) + '">ΠΑΡΕ ΤΟΝ ΠΕΛΑΤΗ ΠΡΩΤΑ</a>' : '') +
+        '<button class="btn btn--wide" id="d-yes" style="background:var(--err);color:#fff;border-color:var(--err)"></button>' +
+        '<button class="btn btn--ghost btn--wide" id="d-no">ΟΧΙ, ΤΟ ΚΡΑΤΑΩ</button>' +
       '</div>',
       function () {
         var yes = document.getElementById('d-yes');
-        yes.addEventListener('click', function () { run(yes, function () { return DB.adminDelete(pin, id); }); });
+        yes.textContent = hasEmail ? 'ΑΚΥΡΩΣΗ ΚΑΙ ΕΙΔΟΠΟΙΗΣΗ' : 'ΑΚΥΡΩΣΗ';
+        yes.addEventListener('click', function () {
+          var why = document.getElementById('d-why').value.trim();
+          run(yes, function () { return DB.adminCancel(pin, id, why); });
+        });
         document.getElementById('d-no').addEventListener('click', closeSheet);
       });
   }
