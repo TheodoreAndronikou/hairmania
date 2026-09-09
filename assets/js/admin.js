@@ -115,7 +115,7 @@
       return '<div class="adm__row">' +
         '<span class="adm__time">' + a.time + '</span>' +
         '<span class="adm__body"><b>' + esc(a.name) + '</b><small>' + esc(a.service) + ' · ' + a.min + "'" +
-        (a.source === 'walkin' ? ' · στο μαγαζί' : ' · online') + '</small></span>' +
+        (a.source === 'walkin' ? ' · με το χέρι' : ' · online') + '</small></span>' +
         (a.phone ? '<a class="adm__call" href="tel:+30' + a.phone + '" aria-label="Κλήση"></a>' : '') +
         '<button class="adm__del" data-k="appt" data-i="' + i + '" aria-label="Διαγραφή"></button></div>';
     }).join('');
@@ -168,13 +168,14 @@
   function timeGrid(id) {
     var out = '';
     ranges(day).forEach(function (r) {
-      for (var m = H.hm2min(r[0]); m < H.hm2min(r[1]); m += 15) out += '<option>' + H.min2hm(m) + '</option>';
+      var step = (C.booking && C.booking.slotStep) || 30;
+      for (var m = H.hm2min(r[0]); m < H.hm2min(r[1]); m += step) out += '<option>' + H.min2hm(m) + '</option>';
     });
     return '<select id="' + id + '" class="adm__sel">' + out + '</select>';
   }
 
   document.getElementById('adm-walkin').addEventListener('click', function () {
-    openSheet('Πελάτης στο μαγαζί',
+    openSheet('Νέο ραντεβού',
       '<div class="field"><label for="w-name">Όνομα</label><input id="w-name" type="text" placeholder="π.χ. Γιώργος"></div>' +
       '<div class="field"><label for="w-time">Ώρα</label>' + timeGrid('w-time') + '</div>' +
       '<div class="field"><label for="w-svc">Υπηρεσία</label><select id="w-svc" class="adm__sel">' +
@@ -194,10 +195,10 @@
   });
 
   document.getElementById('adm-block').addEventListener('click', function () {
-    openSheet('Κλείσε ώρες',
+    openSheet('Μπλοκάρισμα ωρών',
       '<div class="field"><label for="b-time">Από</label>' + timeGrid('b-time') + '</div>' +
       '<div class="field"><label for="b-min">Για πόσο</label><select id="b-min" class="adm__sel">' +
-        [30, 60, 90, 120, 180].map(function (m) { return '<option value="' + m + '">' + m + ' λεπτά</option>'; }).join('') +
+        [30, 60, 90, 120, 180, 240].map(function (m) { return '<option value="' + m + '">' + m + ' λεπτά</option>'; }).join('') +
       '</select></div>' +
       '<div class="field"><label for="b-note">Αιτία (προαιρετικό)</label><input id="b-note" type="text" placeholder="π.χ. συνεργείο"></div>' +
       '<button class="btn btn--accent btn--wide" id="b-go">ΚΛΕΙΣΕ ΤΙΣ ΩΡΕΣ</button>',
@@ -216,7 +217,7 @@
 
   document.getElementById('adm-closeday').addEventListener('click', function () {
     var toISO = H.addDaysISO(day, 6);
-    openSheet('Κλείσε μέρες',
+    openSheet('Διακοπές / ρεπό',
       '<p class="muted" style="font-size:.85rem;margin-top:0">Για διακοπές διάλεξε ολόκληρο διάστημα — δεν χρειάζεται μέρα-μέρα.</p>' +
       '<div class="field-row">' +
         '<div class="field"><label for="c-from">Από</label><input id="c-from" type="date" class="adm__sel" value="' + day + '"></div>' +

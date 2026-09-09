@@ -612,8 +612,14 @@ legend .n { font-family: var(--ff-num); font-size: .72rem; font-weight: 400; let
 .adm__actions { display: grid; gap: 8px; margin-top: 18px; }
 .adm__sel { width: 100%; padding: 13px 14px; font: inherit; color: var(--ink); background: var(--bg); border: var(--bw) solid var(--line); border-radius: var(--r); }
 
+/* Στο κινητό βγαίνει από κάτω (φυσικό για τον αντίχειρα), στον υπολογιστή
+   κεντραρισμένο — αλλιώς κολλάει στο κάτω μέρος μιας μεγάλης οθόνης. */
 .sheet { position: fixed; inset: 0; z-index: 95; display: flex; align-items: flex-end; justify-content: center; background: rgba(10,10,8,.55); }
 .sheet__box { width: 100%; max-width: 520px; background: var(--bg); border: var(--bw) solid var(--line); border-bottom: 0; max-height: 88svh; overflow: auto; }
+@media (min-width: 760px) {
+  .sheet { align-items: center; padding: 24px; }
+  .sheet__box { max-width: 440px; border-bottom: var(--bw) solid var(--line); max-height: 84svh; box-shadow: 0 24px 60px -20px rgba(0,0,0,.5); }
+}
 .sheet__hd { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: var(--bw) solid var(--line); position: sticky; top: 0; background: var(--bg); }
 .sheet__hd b { flex: 1; font-family: var(--ff-disp); font-weight: var(--disp-w); text-transform: var(--disp-tt); letter-spacing: var(--disp-ls); font-size: 1.15rem; }
 .sheet__bd { padding: 16px 14px calc(20px + env(safe-area-inset-bottom)); }
