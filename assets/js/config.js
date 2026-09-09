@@ -75,17 +75,18 @@ window.CONFIG = {
      το Google Sheet (ο ιδιοκτήτης τις αλλάζει χωρίς κώδικα). */
   services: [
     { id: 'kourema',  el: 'Ανδρικό κούρεμα',        en: "Men's haircut",        min: 30, price: 12 },
-    { id: 'combo',    el: 'Κούρεμα & γενειάδα',     en: 'Haircut & beard',      min: 45, price: 18 },
-    { id: 'geneiada', el: 'Περιποίηση γενειάδας',   en: 'Beard trim',           min: 20, price: 8  },
+    { id: 'combo',    el: 'Κούρεμα & γενειάδα',     en: 'Haircut & beard',      min: 30, price: 18 },
+    { id: 'geneiada', el: 'Περιποίηση γενειάδας',   en: 'Beard trim',           min: 30, price: 8  },
     { id: 'paidiko',  el: 'Παιδικό κούρεμα',        en: 'Kids haircut',         min: 30, price: 10 },
     { id: 'ksurisma', el: 'Ξύρισμα με λεπίδα',      en: 'Straight razor shave', min: 30, price: 12 },
-    { id: 'styling',  el: 'Χτένισμα / styling',     en: 'Styling',              min: 15, price: 8  }
+    { id: 'styling',  el: 'Χτένισμα / styling',     en: 'Styling',              min: 30, price: 8  }
   ],
 
   /* ---- 5. ΚΑΝΟΝΕΣ ΚΡΑΤΗΣΕΩΝ --------------------------------- */
   booking: {
     timezone: 'Europe/Athens',
-    slotStep: 15,          /* κάθε πόσα λεπτά ξεκινάει νέο slot     */
+    slotStep: 30,          /* ΟΛΑ τα ραντεβού είναι μισάωρα — απόφαση
+                              του καταστήματος, όχι τεχνικός περιορισμός */
     leadTimeMinutes: 60,   /* πόσο πριν κλείνει η online κράτηση     */
     daysAhead: 21,         /* πόσες μέρες μπροστά μπορεί να κλείσει  */
     cancelCutoffHours: 2,  /* έως πόσο πριν επιτρέπεται η ακύρωση    */

@@ -126,13 +126,29 @@
       b.addEventListener('click', function () {
         var it = itemsFor(day)[+b.dataset.i];
         if (!it) return;
-        if (!confirm('Να διαγραφεί;')) return;
-        var arr = it.k === 'appt' ? DB.appts : DB.blocks;
-        var idx = arr.indexOf(it.v);
-        if (idx >= 0) arr.splice(idx, 1);
-        save(DB); render();
+        var label = it.k === 'appt' ? (it.v.name + ' · ' + it.v.time) : ('ΚΛΕΙΣΤΟ · ' + it.v.time);
+        askDelete(label, function () {
+          var arr = it.k === 'appt' ? DB.appts : DB.blocks;
+          var idx = arr.indexOf(it.v);
+          if (idx >= 0) arr.splice(idx, 1);
+          save(DB); closeSheet(); render();
+        });
       });
     });
+  }
+
+  function askDelete(label, onYes) {
+    openSheet('Διαγραφή',
+      '<p style="margin-top:0">Να διαγραφεί;</p>' +
+      '<p style="font-weight:600;margin-bottom:18px">' + esc(label) + '</p>' +
+      '<div style="display:grid;gap:8px">' +
+        '<button class="btn btn--wide" id="d-yes" style="background:var(--err);color:#fff;border-color:var(--err)">ΔΙΑΓΡΑΦΗ</button>' +
+        '<button class="btn btn--ghost btn--wide" id="d-no">ΑΚΥΡΟ</button>' +
+      '</div>',
+      function () {
+        document.getElementById('d-yes').addEventListener('click', onYes);
+        document.getElementById('d-no').addEventListener('click', closeSheet);
+      });
   }
 
   function esc(s) { return String(s == null ? '' : s).replace(/[<>&]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]; }); }
@@ -199,8 +215,39 @@
   });
 
   document.getElementById('adm-closeday').addEventListener('click', function () {
-    if (isClosed(day)) return;
-    if (!confirm('Να κλείσει όλη η μέρα;')) return;
-    DB.closed.push(day); save(DB); render();
+    var toISO = H.addDaysISO(day, 6);
+    openSheet('Κλείσε μέρες',
+      '<p class="muted" style="font-size:.85rem;margin-top:0">Για διακοπές διάλεξε ολόκληρο διάστημα — δεν χρειάζεται μέρα-μέρα.</p>' +
+      '<div class="field-row">' +
+        '<div class="field"><label for="c-from">Από</label><input id="c-from" type="date" class="adm__sel" value="' + day + '"></div>' +
+        '<div class="field"><label for="c-to">Έως και</label><input id="c-to" type="date" class="adm__sel" value="' + toISO + '"></div>' +
+      '</div>' +
+      '<p class="hint" id="c-info" style="margin-bottom:14px"></p>' +
+      '<button class="btn btn--accent btn--wide" id="c-go">ΚΛΕΙΣΕ ΤΙΣ ΜΕΡΕΣ</button>',
+      function () {
+        var from = document.getElementById('c-from');
+        var to = document.getElementById('c-to');
+        var info = document.getElementById('c-info');
+
+        function listDays() {
+          if (!from.value || !to.value || to.value < from.value) return [];
+          var out = [], d = from.value, guard = 0;
+          while (d <= to.value && guard++ < 400) { out.push(d); d = H.addDaysISO(d, 1); }
+          return out;
+        }
+        function refresh() {
+          var n = listDays().length;
+          info.textContent = n ? ('Θα κλείσουν ' + n + (n === 1 ? ' μέρα' : ' μέρες')) : 'Διάλεξε σωστό διάστημα';
+          document.getElementById('c-go').disabled = !n;
+        }
+        from.addEventListener('change', refresh);
+        to.addEventListener('change', refresh);
+        refresh();
+
+        document.getElementById('c-go').addEventListener('click', function () {
+          listDays().forEach(function (d) { if (DB.closed.indexOf(d) < 0) DB.closed.push(d); });
+          save(DB); closeSheet(); render();
+        });
+      });
   });
 })();

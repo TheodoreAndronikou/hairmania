@@ -34,7 +34,7 @@ var OWNER_EMAIL = 'teo20942@gmail.com';
 var SITE_URL = 'https://theodoreandronikou.github.io/hairmania/';
 
 var TZ                  = 'Europe/Athens';
-var SLOT_STEP           = 15;   /* λεπτά */
+var SLOT_STEP           = 30;   /* λεπτά */
 var LEAD_MINUTES        = 60;   /* πόσο πριν κλείνει η online κράτηση */
 var DAYS_AHEAD          = 21;
 var CANCEL_CUTOFF_HOURS = 2;
