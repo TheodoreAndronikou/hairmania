@@ -57,7 +57,10 @@
         try { sessionStorage.setItem('hmv_pin', pin); } catch (e) {}
         data = res; unlock(); paint();
       } else {
-        err.textContent = (res && res.error === 'BAD_PIN') ? 'Λάθος κωδικός' : 'Δεν συνδέθηκε — δοκίμασε ξανά';
+        err.textContent = !res ? 'Δεν συνδέθηκε — δοκίμασε ξανά'
+          : res.error === 'BAD_PIN' ? 'Λάθος κωδικός'
+          : res.error === 'UNKNOWN_ACTION' ? 'Ο server τρέχει παλιά έκδοση — ανέβασε ξανά το Code.gs'
+          : 'Δεν συνδέθηκε — δοκίμασε ξανά';
         err.style.display = 'block';
       }
     }).catch(function () {
