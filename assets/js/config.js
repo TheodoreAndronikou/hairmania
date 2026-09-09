@@ -21,8 +21,8 @@ window.CONFIG = {
      Το anon key ΠΡΕΠΕΙ να είναι δημόσιο — η βάση είναι κλειδωμένη
      με RLS και δέχεται μόνο τις συναρτήσεις μας. */
   SUPABASE: {
-    url: '',
-    key: ''
+    url: 'https://vspvgsylzmjmhnmhqnfb.supabase.co',
+    key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzcHZnc3lsem1qbWhubWhxbmZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5ODI3NzksImV4cCI6MjEwNDU1ODc3OX0.ZE77ppvRawIRG0jPtCmR4GQbOdt0tAtHa0ODPRscuDE'
   },
 
   /* ---- 1α. ΠΡΟΣΩΡΙΝΟ: ΣΤΑΤΙΚΗ ΔΙΑΘΕΣΙΜΟΤΗΤΑ -----------------
@@ -33,7 +33,7 @@ window.CONFIG = {
 
      Ανανέωση των δεδομένων:  node snapshot.mjs && node publish.mjs
      Βάλε '' για να ξαναδιαβάζει ζωντανά (αργά) από το Google. */
-  DATA_URL: 'data/availability.json',
+  DATA_URL: '',
 
   /* ---- 1β. ΘΕΜΑ ΕΜΦΑΝΙΣΗΣ ------------------------------------
      'c' = TICKET       — άσπρο / μαύρο / acid κίτρινο  (ενεργό)

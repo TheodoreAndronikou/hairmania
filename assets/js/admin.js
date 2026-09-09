@@ -17,6 +17,13 @@
   if (!gate) return;
 
   var H = window.HMV, C = window.CONFIG;
+  var DB = window.HMV_DB;
+
+  /** Ημερομηνία+ώρα Αθήνας -> πραγματικό Date. */
+  function startOf(dateISO, hhmm) {
+    var p = H.parseISO(dateISO), hm = hhmm.split(':');
+    return H.athens(p.y, p.m, p.d, +hm[0], +hm[1]);
+  }
   var panel = document.getElementById('panel');
   var sheet = document.getElementById('sheet');
   var day = H.nowAthens().iso;
@@ -50,7 +57,7 @@
     err.style.display = 'none';
     btn.disabled = true; btn.textContent = 'ΕΛΕΓΧΟΣ…';
 
-    api({ action: 'adminday', date: day, pin: v }).then(function (res) {
+    DB.adminDay(v, day).then(function (res) {
       btn.disabled = false; btn.textContent = 'ΕΙΣΟΔΟΣ';
       if (res && res.ok) {
         pin = v;
@@ -90,7 +97,7 @@
   function load() {
     var seq = ++loadSeq;
     setBusy(true);
-    api({ action: 'adminday', date: day, pin: pin }).then(function (res) {
+    DB.adminDay(pin, day).then(function (res) {
       if (seq !== loadSeq) return;
       setBusy(false);
       if (!res || !res.ok) { fail(res && res.error === 'BAD_PIN' ? 'Ο κωδικός δεν ισχύει πια' : 'Δεν φόρτωσε'); return; }
@@ -194,13 +201,16 @@
   sheet.addEventListener('click', function (e) { if (e.target === sheet) closeSheet(); });
 
   /** Κάθε ενέργεια περνάει από τον server· δείχνουμε τι γίνεται. */
-  function run(btn, body) {
+  function run(btn, fn) {
     var label = btn.textContent;
     btn.disabled = true; btn.textContent = 'ΑΠΟΘΗΚΕΥΕΤΑΙ…';
-    send(body).then(function (res) {
+    fn().then(function (res) {
       if (res && res.ok) { closeSheet(); load(); return; }
       btn.disabled = false; btn.textContent = label;
-      alertSheet(res && res.error === 'BAD_PIN' ? 'Ο κωδικός δεν ισχύει' : 'Δεν αποθηκεύτηκε — δοκίμασε ξανά');
+      alertSheet(!res ? 'Δεν αποθηκεύτηκε — δοκίμασε ξανά'
+        : res.error === 'BAD_PIN' ? 'Ο κωδικός δεν ισχύει'
+        : res.error === 'SLOT_TAKEN' ? 'Η ώρα είναι ήδη πιασμένη'
+        : 'Δεν αποθηκεύτηκε — δοκίμασε ξανά');
     }).catch(function () {
       btn.disabled = false; btn.textContent = label;
       alertSheet('Δεν αποθηκεύτηκε — έλεγξε το ίντερνετ');
@@ -235,12 +245,13 @@
       function () {
         var go = document.getElementById('w-go');
         go.addEventListener('click', function () {
-          run(go, {
-            action: 'adminAdd', date: day,
-            time: document.getElementById('w-time').value,
-            serviceId: document.getElementById('w-svc').value,
-            name: document.getElementById('w-name').value.trim(),
-            phone: document.getElementById('w-phone').value.trim()
+          run(go, function () {
+            return DB.adminAdd(pin, {
+              start: startOf(day, document.getElementById('w-time').value),
+              serviceId: document.getElementById('w-svc').value,
+              name: document.getElementById('w-name').value.trim(),
+              phone: document.getElementById('w-phone').value.trim()
+            });
           });
         });
       });
@@ -257,11 +268,12 @@
       function () {
         var go = document.getElementById('b-go');
         go.addEventListener('click', function () {
-          run(go, {
-            action: 'adminBlock', date: day,
-            time: document.getElementById('b-time').value,
-            min: +document.getElementById('b-min').value,
-            note: document.getElementById('b-note').value.trim()
+          run(go, function () {
+            return DB.adminBlock(pin, {
+              start: startOf(day, document.getElementById('b-time').value),
+              minutes: +document.getElementById('b-min').value,
+              note: document.getElementById('b-note').value.trim()
+            });
           });
         });
       });
@@ -295,7 +307,7 @@
         to.addEventListener('change', refresh);
         refresh();
         go.addEventListener('click', function () {
-          run(go, { action: 'adminClose', from: from.value, to: to.value, note: document.getElementById('c-note').value.trim() });
+          run(go, function () { return DB.adminClose(pin, from.value, to.value, document.getElementById('c-note').value.trim()); });
         });
       });
   });
@@ -310,7 +322,7 @@
       '</div>',
       function () {
         var yes = document.getElementById('d-yes');
-        yes.addEventListener('click', function () { run(yes, { action: 'adminDelete', id: id }); });
+        yes.addEventListener('click', function () { run(yes, function () { return DB.adminDelete(pin, id); }); });
         document.getElementById('d-no').addEventListener('click', closeSheet);
       });
   }

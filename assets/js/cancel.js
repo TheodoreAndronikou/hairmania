@@ -5,6 +5,7 @@
   'use strict';
 
   var H = window.HMV, C = window.CONFIG, t = H.t;
+  var DB = window.HMV_DB;
   var box = document.getElementById('cx');
   if (!box) return;
 
@@ -27,7 +28,7 @@
 
   box.innerHTML = '<div class="spin"></div><p class="center muted">' + t('cx.loading') + '</p>';
 
-  var demo = H.DEMO;
+  var demo = H.DEMO && !DB;
 
   function load() {
     if (demo) {
@@ -38,7 +39,7 @@
         serviceName: 'Κούρεμα & γενειάδα', name: 'Demo'
       });
     }
-    return H.apiGet({ action: 'appointment', id: id, k: key });
+    return DB ? DB.appointmentInfo(id, key) : H.apiGet({ action: 'appointment', id: id, k: key });
   }
 
   load().then(function (res) {
@@ -68,7 +69,9 @@
     var go = document.getElementById('cx-go');
     if (go) go.addEventListener('click', function () {
       go.disabled = true; go.textContent = '…';
-      var p2 = demo ? Promise.resolve({ ok: true }) : H.apiPost({ action: 'cancel', id: id, k: key });
+      var p2 = demo ? Promise.resolve({ ok: true })
+        : DB ? DB.cancelAppointment(id, key)
+        : H.apiPost({ action: 'cancel', id: id, k: key });
       p2.then(function (r) {
         if (r && r.ok) {
           box.innerHTML =

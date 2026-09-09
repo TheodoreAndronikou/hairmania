@@ -7,6 +7,13 @@
   'use strict';
 
   var H = window.HMV, C = window.CONFIG, t = H.t;
+  var DB = window.HMV_DB;
+
+  /** Ημερομηνία+ώρα Αθήνας -> πραγματικό Date. */
+  function startOf(dateISO, hhmm) {
+    var p = H.parseISO(dateISO), hm = hhmm.split(':');
+    return H.athens(p.y, p.m, p.d, +hm[0], +hm[1]);
+  }
   var form = document.getElementById('bk');
   if (!form) return;
 
@@ -359,7 +366,6 @@
         goToStep(4, name && !name.value ? name : null);
         /* Η κράτηση πάει στο Apps Script, που κοιμάται. Το ξυπνάμε τώρα, όσο
            συμπληρώνει τα στοιχεία του, ώστε το «Επιβεβαίωση» να μην κολλήσει. */
-        if (!H.DEMO && !S.warmed) { S.warmed = true; H.apiGet({ action: 'ping' }).catch(function () {}); }
       });
     });
   }
@@ -476,7 +482,12 @@
             res({ ok: true, eventId: 'demo-' + S.idem, cancelKey: Math.random().toString(36).slice(2, 10) });
           }, 900);
         })
-      : H.apiPost(payload);
+      : DB
+        ? DB.book({ start: startOf(S.date, S.time), serviceId: svc.id,
+                    name: payload.name, phone: payload.phone,
+                    email: payload.email, notes: payload.notes })
+            .then(function (r) { if (r && r.ok) r.eventId = r.id; return r; })
+        : H.apiPost(payload);
 
     p.then(function (res) {
       if (res && res.ok) { success(res, payload, svc); return; }
@@ -603,11 +614,9 @@
 
     if (H.DEMO) { S.ready = true; return; }
 
-    /* Διαβάζουμε από το στατικό στιγμιότυπο όταν υπάρχει (~50ms από CDN),
-       αλλιώς ζωντανά από το Google (2-110s). */
-    var source = C.DATA_URL
-      ? fetch(C.DATA_URL, { cache: 'no-cache' }).then(function (r) { return r.json(); })
-      : H.apiGet({ action: 'bootstrap' });
+    /* Μία κλήση στη βάση (~100ms). Τέλος τα στιγμιότυπα και οι ουρές. */
+    var source = DB ? DB.availability(C.booking.daysAhead)
+                    : H.apiGet({ action: 'bootstrap' });
 
     source.then(function (res) {
       if (!res || !res.ok) throw new Error('bootstrap');
@@ -616,8 +625,7 @@
       if (res.closures) S.closures = res.closures;
       /* Ανιχνεύουμε αν ο server είναι η νέα έκδοση. */
       if (Array.isArray(res.busy)) { S.busy = res.busy; S.legacy = false; }
-      else if (C.DATA_URL) { S.busy = []; S.legacy = false; console.warn("HMV: το στιγμιότυπο δεν έχει πιασμένα διαστήματα — τρέξε νέα έκδοση του Code.gs και ξανά node snapshot.mjs"); }
-      else { S.legacy = true; }
+      else { S.legacy = !DB; }
       if (res.leadMinutes) S.leadMinutes = res.leadMinutes;
       if (res.slotStep) S.slotStep = res.slotStep;
       S.ready = true;
@@ -625,7 +633,6 @@
 
       renderServices(); renderDays(); renderSummary(); H.renderPrices();
       if (S.pending) { var pend = S.pending; S.pending = null; loadSlots(pend.advance); }
-      if (C.DATA_URL) refreshLive();
     }).catch(function () {
       /* Χωρίς τα διαστήματα δεν ξέρουμε τι είναι πιασμένο — καλύτερα να το
          πούμε παρά να δείξουμε ώρες που ίσως δεν υπάρχουν. */
