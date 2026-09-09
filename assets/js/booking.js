@@ -224,11 +224,39 @@
    * κατειλημμένα διαστήματα μία φορά (bootstrap) και υπολογίζουμε εδώ.
    * Ο server παραμένει η πηγή αλήθειας: ξαναελέγχει στην κράτηση.
    */
+  /**
+   * ΠΡΟΣΩΡΙΝΗ ΓΕΦΥΡΑ ΜΕ ΤΟ ΔΙΑΧΕΙΡΙΣΤΙΚΟ.
+   *
+   * Το διαχειριστικό γράφει σε localStorage του ίδιου κινητού. Χωρίς αυτό,
+   * ό,τι καταχωρεί ο ιδιοκτήτης δεν θα φαινόταν στη δημόσια σελίδα και η
+   * επίδειξη θα έδειχνε ασυνεπής. Με την πραγματική βάση, αυτά έρχονται
+   * από τον server και η συνάρτηση φεύγει.
+   */
+  function localAdminBusy() {
+    var out = [];
+    try {
+      var d = JSON.parse(localStorage.getItem('hmv_admin_v1') || '{}');
+      (d.appts || []).concat(d.blocks || []).forEach(function (x) {
+        if (!x.date || !x.time) return;
+        var p = H.parseISO(x.date), hm = x.time.split(':');
+        var s = H.athens(p.y, p.m, p.d, +hm[0], +hm[1]).getTime();
+        out.push([s, s + (x.min || 30) * 60000]);
+      });
+      (d.closed || []).forEach(function (iso) {
+        var p = H.parseISO(iso);
+        var s = H.athens(p.y, p.m, p.d, 0, 0).getTime();
+        out.push([s, s + 24 * 3600000]);
+      });
+    } catch (e) {}
+    return out;
+  }
+
   function computeSlots(dateISO, svc) {
     if (!dayOpen(dateISO)) return [];
     var p = H.parseISO(dateISO);
     var ranges = (S.hours[H.dowOf(dateISO)] || []);
     var limit = Date.now() + (S.leadMinutes || C.booking.leadTimeMinutes) * 60000;
+    var busy = S.busy.concat(localAdminBusy());
     var step = S.slotStep || C.booking.slotStep;
     var out = [];
 
@@ -239,8 +267,8 @@
         var e = s + svc.min * 60000;
         if (s < limit) continue;
         var free = true;
-        for (var b = 0; b < S.busy.length; b++) {
-          if (s < S.busy[b][1] && e > S.busy[b][0]) { free = false; break; }
+        for (var b = 0; b < busy.length; b++) {
+          if (s < busy[b][1] && e > busy[b][0]) { free = false; break; }
         }
         if (free) out.push(H.min2hm(m));
       }
