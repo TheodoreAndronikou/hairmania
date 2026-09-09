@@ -10,7 +10,7 @@ window.CONFIG = {
      Επικόλλησε εδώ το URL του Google Apps Script Web App.
      Όσο είναι κενό (''), το site τρέχει σε DEMO MODE: δείχνει
      ψεύτικες διαθέσιμες ώρες και δεν κλείνει πραγματικά ραντεβού. */
-  API_URL: 'https://script.google.com/macros/s/AKfycbww-iRh5xueCymEjEQL_cha1TYdJlzXON3tTKHKeoks2cVMRSxo0A7-zWKdT0oFRu9a/exec',
+  API_URL: 'https://script.google.com/macros/s/AKfycbyHBuUqRiCKivJShEnkToaOAIsTkvuxfGHcC212bld2FCG9Ac1vedYn0wSEuKl8DTvn/exec',
 
   /* ---- 1α. ΠΡΟΣΩΡΙΝΟ: ΣΤΑΤΙΚΗ ΔΙΑΘΕΣΙΜΟΤΗΤΑ -----------------
      Το Apps Script απαντάει από 2 έως 110 δευτερόλεπτα — απρόβλεπτα.
