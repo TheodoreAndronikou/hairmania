@@ -61,7 +61,8 @@
       'TRANSP:OPAQUE',
       'SEQUENCE:0'
     ];
-    if (o.url) L.push('URL:' + esc(o.url));
+    /* Το URL property το δείχνει το iPhone ως γυμνή διεύθυνση μέσα στο
+       ραντεβού και μπερδεύει. Ο σύνδεσμος ακύρωσης μπαίνει στις σημειώσεις. */
     (o.alarms || []).forEach(function (h) {
       L.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + esc(o.title),
              'TRIGGER:' + trig(h), 'END:VALARM');

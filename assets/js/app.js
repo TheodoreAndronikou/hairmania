@@ -51,7 +51,8 @@
     close: '<path d="M5 5l14 14M19 5 5 19"/>',
     left: '<path d="m14 5-7 7 7 7"/>',
     right: '<path d="m10 5 7 7-7 7"/>',
-    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>'
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+    down: '<path d="M12 4v15M6 13l6 6 6-6"/>'
   };
 
   function icon(name, cls) {

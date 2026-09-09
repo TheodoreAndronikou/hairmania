@@ -116,6 +116,7 @@ window.I18N = {
     'ok.copy': 'Αντιγραφή συνδέσμου',
     'ok.copied': 'Αντιγράφηκε!',
     'ok.again': 'Νέο ραντεβού',
+    'ok.ios': 'Στο iPhone: πάτησε «Προσθήκη» ΚΑΤΩ-ΚΑΤΩ στην οθόνη, όχι πάνω δεξιά',
     'ok.ics_note': 'Το αρχείο .ics ανοίγει σε Google, Apple, Samsung και Outlook ημερολόγιο, με υπενθύμιση 2 ώρες και 30 λεπτά πριν.',
 
     'cx.h2': 'Ακύρωση ραντεβού',
@@ -261,6 +262,7 @@ window.I18N = {
     'ok.copy': 'Copy link',
     'ok.copied': 'Copied!',
     'ok.again': 'New appointment',
+    'ok.ios': 'On iPhone: tap «Add» at the BOTTOM of the screen, not top right',
     'ok.ics_note': 'The .ics file opens in Google, Apple, Samsung and Outlook calendars, with reminders 2 hours and 30 minutes before.',
 
     'cx.h2': 'Cancel appointment',

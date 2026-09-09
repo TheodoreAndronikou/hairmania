@@ -356,6 +356,9 @@
         S.time = inp.value; showErr(''); renderSummary(); setStep(currentStep());
         var name = document.getElementById('f-name');
         goToStep(4, name && !name.value ? name : null);
+        /* Η κράτηση πάει στο Apps Script, που κοιμάται. Το ξυπνάμε τώρα, όσο
+           συμπληρώνει τα στοιχεία του, ώστε το «Επιβεβαίωση» να μην κολλήσει. */
+        if (!H.DEMO && !S.warmed) { S.warmed = true; H.apiGet({ action: 'ping' }).catch(function () {}); }
       });
     });
   }
@@ -537,6 +540,7 @@
             '<button type="button" class="btn btn--ghost" id="cp-link">' + H.icon('link') + t('ok.copy') + '</button>' +
             '<a class="btn btn--ghost" href="rantevou.html">' + H.icon('scissors') + t('ok.again') + '</a>' +
           '</div>' +
+          '<p class="ios-tip" id="ios-tip" hidden>' + H.icon('down') + '<span>' + t('ok.ios') + '</span></p>' +
           '<p class="muted" style="font-size:.78rem;margin-top:18px">' + t('ok.ics_note') + '</p>' +
           '<p class="muted" style="font-size:.78rem">' + t('ok.cancel_note') + '</p>' +
         '</div>' +
@@ -546,7 +550,13 @@
     var bar = document.querySelector('[data-bar]');
     if (bar) { bar.innerHTML = H.defaultBar(); bar.dataset.mode = 'default'; H.applyLang(); H.fixGreekCaps(bar); }
 
+    /* Στο iPhone το άνοιγμα του .ics δείχνει προεπισκόπηση και το κουμπί
+       «Προσθήκη» είναι ΚΑΤΩ-ΚΑΤΩ — οι περισσότεροι ψάχνουν πάνω δεξιά. */
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     document.getElementById('dl-ics').addEventListener('click', function () {
+      var tip = document.getElementById('ios-tip');
+      if (tip && isIOS) tip.hidden = false;
       window.ICS.download(icsText, 'rantevou-hairmania.ics');
     });
     document.getElementById('cp-link').addEventListener('click', function () {
@@ -565,15 +575,21 @@
 
     if (H.DEMO) { S.ready = true; return; }
 
-    /* Η ΜΟΝΗ κλήση στον server σε όλη τη ροή επιλογής. */
-    H.apiGet({ action: 'bootstrap' }).then(function (res) {
+    /* Διαβάζουμε από το στατικό στιγμιότυπο όταν υπάρχει (~50ms από CDN),
+       αλλιώς ζωντανά από το Google (2-110s). */
+    var source = C.DATA_URL
+      ? fetch(C.DATA_URL, { cache: 'no-cache' }).then(function (r) { return r.json(); })
+      : H.apiGet({ action: 'bootstrap' });
+
+    source.then(function (res) {
       if (!res || !res.ok) throw new Error('bootstrap');
       if (res.services && res.services.length) { S.services = res.services; C.services = res.services; }
       if (res.hours) { S.hours = res.hours; C.hours = res.hours; }
       if (res.closures) S.closures = res.closures;
       /* Ανιχνεύουμε αν ο server είναι η νέα έκδοση. */
       if (Array.isArray(res.busy)) { S.busy = res.busy; S.legacy = false; }
-      else { S.legacy = true; console.warn("HMV: παλιό backend — οι ώρες θα φορτώνουν ανά ημέρα (αργά). Ανέβασε νέα έκδοση του Code.gs."); }
+      else if (C.DATA_URL) { S.busy = []; S.legacy = false; console.warn("HMV: το στιγμιότυπο δεν έχει πιασμένα διαστήματα — τρέξε νέα έκδοση του Code.gs και ξανά node snapshot.mjs"); }
+      else { S.legacy = true; }
       if (res.leadMinutes) S.leadMinutes = res.leadMinutes;
       if (res.slotStep) S.slotStep = res.slotStep;
       S.ready = true;

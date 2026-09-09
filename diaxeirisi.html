@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Διαχείριση — HAIR MANIA VALKANIS</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#14140F">
+<link rel="icon" href="assets/img/logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="admin">
+
+<main id="main" class="section" style="padding-block:0">
+  <div class="wrap" style="max-width:560px;padding-top:18px">
+
+    <!-- ΚΛΕΙΔΩΜΑ -->
+    <div id="gate">
+      <div style="text-align:center;margin:40px 0 26px">
+        <img src="assets/img/logo.jpg" alt="" width="120" style="margin:0 auto 18px;border:2px solid var(--line)">
+        <h1 style="font-size:clamp(2rem,8vw,2.8rem);margin:0">ΔΙΑΧΕΙΡΙΣΗ</h1>
+        <p class="muted" style="font-size:.86rem">Μόνο για το κατάστημα</p>
+      </div>
+      <div class="field">
+        <label for="pw">Κωδικός</label>
+        <input id="pw" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••">
+        <p class="field__err" id="pw-err" style="display:none">Λάθος κωδικός</p>
+      </div>
+      <button class="btn btn--accent btn--wide" id="gate-go">ΕΙΣΟΔΟΣ</button>
+    </div>
+
+    <!-- ΠΙΝΑΚΑΣ -->
+    <div id="panel" hidden>
+      <div class="adm__top">
+        <div>
+          <div class="adm__date" id="adm-date"></div>
+          <div class="adm__sub" id="adm-sub"></div>
+        </div>
+        <button class="cal__nav" id="adm-prev" aria-label="Προηγούμενη μέρα"></button>
+        <button class="cal__nav" id="adm-next" aria-label="Επόμενη μέρα"></button>
+      </div>
+
+      <div id="adm-list"></div>
+
+      <div class="adm__actions">
+        <button class="btn btn--accent btn--wide" id="adm-walkin">+ ΠΕΛΑΤΗΣ ΣΤΟ ΜΑΓΑΖΙ</button>
+        <button class="btn btn--ghost btn--wide" id="adm-block">ΚΛΕΙΣΕ ΩΡΕΣ</button>
+        <button class="btn btn--ghost btn--wide" id="adm-closeday">ΚΛΕΙΣΕ ΟΛΗ ΤΗ ΜΕΡΑ</button>
+      </div>
+
+      <p class="muted" style="font-size:.72rem;margin-top:22px;text-align:center">
+        Δοκιμαστική έκδοση — τα δεδομένα μένουν σε αυτό το κινητό.<br>
+        Με την πραγματική βάση θα συγχρονίζονται παντού.
+      </p>
+      <p style="text-align:center;margin-top:10px">
+        <button class="btn btn--ghost" id="adm-out" style="padding:8px 16px;font-size:.7rem">ΕΞΟΔΟΣ</button>
+      </p>
+    </div>
+
+  </div>
+</main>
+
+<!-- φύλλο ενεργειών -->
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet__box">
+    <div class="sheet__hd"><b id="sheet-title"></b>
+      <button class="cal__nav" id="sheet-x" aria-label="Κλείσιμο"></button></div>
+    <div class="sheet__bd" id="sheet-body"></div>
+  </div>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/app.js" defer></script>
+<script src="assets/js/admin.js" defer></script>
+</body>
+</html>
