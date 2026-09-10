@@ -111,6 +111,16 @@
 <footer class="ftr" data-footer></footer>
 <nav class="bar" data-bar aria-label="Quick actions"></nav>
 
+<!-- Τελευταίος έλεγχος πριν κλείσει η ώρα. Δεν είναι γραφειοκρατία:
+     εδώ πιάνεται το λάθος ψηφίο στο τηλέφωνο και η λάθος μέρα. -->
+<div class="sheet" id="bk-sheet" hidden>
+  <div class="sheet__box" role="dialog" aria-modal="true" aria-labelledby="bk-sheet-title">
+    <div class="sheet__hd"><b id="bk-sheet-title"></b>
+      <button class="cal__nav" id="bk-sheet-x" type="button" aria-label="Κλείσιμο"></button></div>
+    <div class="sheet__bd" id="bk-sheet-body"></div>
+  </div>
+</div>
+
 <script src="assets/js/config.js"></script>
 <script src="assets/js/i18n.js"></script>
 <script src="assets/js/db.js"></script>

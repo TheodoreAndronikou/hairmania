@@ -41,6 +41,7 @@
     busy: [], ready: false, pending: null,
     loadToken: 0,
     submitting: false,
+    confirmed: false,
     idem: null
   };
 
@@ -473,6 +474,76 @@
     });
   });
 
+  /* ---------------- φύλλο επιβεβαίωσης ----------------
+     Το κουμπί της κάτω μπάρας έκλεινε το ραντεβού ακαριαία, χωρίς
+     ο πελάτης να δει τι ακριβώς κλείνει. Τώρα και τα δύο κουμπιά
+     περνάνε από εδώ — μία ματιά σε μέρα, ώρα και τηλέφωνο. */
+  var sheet = document.getElementById('bk-sheet');
+
+  function closeConfirm() {
+    if (sheet) sheet.hidden = true;
+  }
+  if (sheet) {
+    document.getElementById('bk-sheet-x').innerHTML = H.icon('close');
+    document.getElementById('bk-sheet-x').addEventListener('click', closeConfirm);
+    sheet.addEventListener('click', function (e) { if (e.target === sheet) closeConfirm(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !sheet.hidden && !S.submitting) closeConfirm();
+    });
+  }
+
+  function askConfirm(payload, svc) {
+    if (!sheet) { S.confirmed = true; form.requestSubmit ? form.requestSubmit() : el.submit.click(); return; }
+
+    var rows = [
+      [t('bk.sum_srv'), H.grUpper(svcName(svc))],
+      [t('bk.sum_when'), H.grUpper(H.fmtDateShort(S.date)) + ' · ' + S.time],
+      [t('bk.name'), payload.name],
+      [t('bk.phone'), payload.phone]
+    ];
+    if (payload.email) rows.push([t('bk.email'), payload.email]);
+
+    var cut = (C.booking && C.booking.cancelCutoffHours) || 2;
+
+    document.getElementById('bk-sheet-title').textContent = H.grUpper(t('bk.conf_t'));
+    document.getElementById('bk-sheet-body').innerHTML =
+      '<dl class="summary__bd conf__list">' + rows.map(function (r) {
+        return '<div class="summary__row"><dt>' + r[0] + '</dt><dd>' + esc(r[1]) + '</dd></div>';
+      }).join('') + '</dl>' +
+      '<div class="summary__tot"><b>' + svc.price + ',00 €</b>' +
+        '<span class="muted" style="margin-left:auto;font-size:.78rem">' + t('bk.sum_price') + '</span></div>' +
+      '<p class="hint" style="display:block;margin:12px 0 16px">' +
+        t('bk.conf_note').replace('{h}', cut) + '</p>' +
+      '<div style="display:grid;gap:8px">' +
+        '<button type="button" class="btn btn--accent btn--wide" id="conf-yes">' + t('bk.conf_yes') + '</button>' +
+        '<button type="button" class="btn btn--ghost btn--wide" id="conf-no">' + t('bk.conf_no') + '</button>' +
+      '</div>';
+
+    H.fixGreekCaps(sheet);
+    sheet.hidden = false;
+
+    var yes = document.getElementById('conf-yes');
+    yes.addEventListener('click', function () {
+      yes.disabled = true;
+      document.getElementById('conf-no').disabled = true;
+      yes.textContent = t('bk.submitting');
+      H.fixGreekCaps(yes.parentNode);
+      S.confirmed = true;
+      if (form.requestSubmit) form.requestSubmit(); else el.submit.click();
+    });
+    document.getElementById('conf-no').addEventListener('click', function () {
+      closeConfirm();
+      goToStep(4, field('f-name'));
+    });
+    setTimeout(function () { try { yes.focus(); } catch (e) {} }, 40);
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[<>&"]/g, function (c) {
+      return { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c];
+    });
+  }
+
   /* ---------------- submit ---------------- */
   form.addEventListener('submit', function (ev) {
     ev.preventDefault();
@@ -499,6 +570,9 @@
       notes: field('f-notes').value.trim(),
       lang: H.lang
     };
+
+    /* Πρώτο πάτημα: δείχνουμε τη σύνοψη. Δεύτερο (από το φύλλο): κλείνει. */
+    if (!S.confirmed) { askConfirm(payload, svc); return; }
 
     S.submitting = true;
     el.submit.disabled = true;
@@ -531,6 +605,8 @@
       showErr(t('bk.failed'));
     }).then(function () {
       S.submitting = false;
+      S.confirmed = false;          /* η επόμενη προσπάθεια ξαναρωτάει */
+      closeConfirm();
       el.submit.textContent = label;
       el.submit.disabled = !(S.service && S.date && S.time);
     });

@@ -725,6 +725,9 @@ legend .n { font-family: var(--ff-num); font-size: .72rem; font-weight: 400; let
 
 .adm__closed .btn { margin-top: 14px; }
 
+.conf__list { margin: 0 0 4px; }
+.conf__list dd { text-align: right; word-break: break-word; }
+
 .adm__past {
   display: grid; gap: 4px; margin: -4px 0 14px; padding: 11px 13px;
   border: var(--bw) solid var(--warn); border-radius: var(--r);
