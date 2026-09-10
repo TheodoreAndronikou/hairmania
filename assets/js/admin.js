@@ -203,18 +203,18 @@
     day = H.nowAthens().iso; paintHeader(); load();
   });
 
-  /* Η ημερομηνία πατιέται: ανοίγει τον επιλογέα του λειτουργικού.
-     showPicker() δεν υπάρχει παντού — αλλιώς εστιάζουμε το πεδίο. */
+  /* Το πεδίο είναι διάφανο πάνω από την ημερομηνία, άρα το πάτημα το
+     δέχεται το ίδιο. Στον υπολογιστή βοηθάει και το showPicker(), που στο
+     κινητό απλώς δεν υπάρχει — γι' αυτό δεν βασιζόμαστε σε αυτό. */
   var jump = document.getElementById('adm-jump');
-  document.getElementById('adm-date').addEventListener('click', function () {
-    jump.value = day;
-    try { jump.showPicker(); }
-    catch (e) { jump.style.pointerEvents = 'auto'; jump.style.opacity = '1'; jump.focus(); jump.click(); }
+  jump.addEventListener('click', function () {
+    if (typeof jump.showPicker === 'function') {
+      try { jump.showPicker(); } catch (e) {}
+    }
   });
   jump.addEventListener('change', function () {
     if (!jump.value) return;
     day = jump.value;
-    jump.style.pointerEvents = ''; jump.style.opacity = '';
     paintHeader(); load();
   });
 
@@ -240,6 +240,7 @@
   /* ---------- εμφάνιση ---------- */
   function paintHeader() {
     var D = H.days(), el = document.getElementById('adm-date');
+    jump.value = day;          /* ο επιλογέας ανοίγει στη μέρα που βλέπει */
     if (view === 'week') {
       var a0 = weekStart(day), a1 = H.addDaysISO(a0, 6);
       var p0 = H.parseISO(a0), p1 = H.parseISO(a1);
