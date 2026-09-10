@@ -40,7 +40,7 @@
   --shadow: none;
   --hero-filter: grayscale(1) contrast(1.25) brightness(1.05);
   --img-filter: grayscale(1) contrast(1.15);
-  --header-h: 58px;
+  --header-h: 52px;
 }
 
 /* ---------- ΘΕΜΑ A — EDITORIAL BONE ---------- */
@@ -185,8 +185,11 @@ p { margin: 0 0 1em; }
 @media (min-width: 880px) { :root { --header-h: 62px; } }
 /* Σε iPhone με εγκοπή η μπάρα κολλούσε στο πάνω άκρο και το «burger» δεν
    είχε αέρα από πάνω. Το inset είναι 0 όπου δεν χρειάζεται. */
-.hdr { padding-top: env(safe-area-inset-top); }
-.drawer { top: calc(var(--header-h) + env(safe-area-inset-top)); }
+/* Το env(safe-area-inset-top) είναι 0 σε iPhone χωρίς εγκοπή και σε
+   Android, οπότε από μόνο του δεν άλλαζε τίποτα. Το max() εγγυάται
+   πραγματικό κενό παντού, και παραπάνω όπου υπάρχει εγκοπή. */
+.hdr { padding-top: max(9px, env(safe-area-inset-top)); }
+.drawer { top: calc(var(--header-h) + max(9px, env(safe-area-inset-top))); }
 .hdr__in {
   height: var(--header-h);
   display: flex; align-items: center; gap: 12px;
@@ -564,6 +567,8 @@ legend .n { font-family: var(--ff-num); font-size: .72rem; font-weight: 400; let
 
 /* ---------- footer ---------- */
 .ftr { background: var(--surface); border-top: var(--bw) solid var(--line); padding: clamp(32px,7vw,52px) 0 96px; }
+/* Η σελίδα κράτησης δεν έχει κάτω μπάρα, άρα ούτε κενό για να τη χωρέσει. */
+body[data-page="book"] .ftr { padding-bottom: clamp(32px,7vw,52px); }
 .ftr__grid { display: grid; gap: 26px; }
 @media (min-width: 760px) { .ftr__grid { grid-template-columns: 1.3fr 1fr 1fr; } }
 .ftr h4 {

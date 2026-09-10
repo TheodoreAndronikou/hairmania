@@ -415,19 +415,6 @@
 
     H.fixGreekCaps(el.summary);
     el.submit.disabled = !ready;
-    renderBar();
-  }
-
-  /* Η κάτω μπάρα μένει η κανονική (Κλήση / Ραντεβού) σε όλη τη σελίδα.
-     Είχε γίνει «σύνοψη» που ακολουθούσε παντού — περιττή, αφού η σύνοψη
-     υπάρχει ήδη μέσα στη σελίδα και στο παράθυρο επιβεβαίωσης. */
-  function renderBar() {
-    var bar = document.querySelector('[data-bar]');
-    if (!bar || bar.dataset.mode === 'default') return;
-    bar.innerHTML = H.defaultBar();
-    bar.dataset.mode = 'default';
-    H.applyLang();
-    H.fixGreekCaps(bar);
   }
 
   /* ---------------- validation ---------------- */
@@ -674,9 +661,6 @@
         '</div>' +
       '</div>';
     H.fixGreekCaps(el.done);
-
-    var bar = document.querySelector('[data-bar]');
-    if (bar) { bar.innerHTML = H.defaultBar(); bar.dataset.mode = 'default'; H.applyLang(); H.fixGreekCaps(bar); }
 
     /* Στο iPhone το άνοιγμα του .ics δείχνει προεπισκόπηση και το κουμπί
        «Προσθήκη» είναι ΚΑΤΩ-ΚΑΤΩ — οι περισσότεροι ψάχνουν πάνω δεξιά. */
