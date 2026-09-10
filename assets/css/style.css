@@ -40,7 +40,7 @@
   --shadow: none;
   --hero-filter: grayscale(1) contrast(1.25) brightness(1.05);
   --img-filter: grayscale(1) contrast(1.15);
-  --header-h: 60px;
+  --header-h: 54px;
 }
 
 /* ---------- ΘΕΜΑ A — EDITORIAL BONE ---------- */
@@ -180,19 +180,26 @@ p { margin: 0 0 1em; }
 
 /* ---------- header ---------- */
 .hdr { position: sticky; top: 0; z-index: 60; background: var(--bg); border-bottom: var(--bw) solid var(--line); }
+/* Σε μεγάλη οθόνη υπάρχει χώρος· στο κινητό η μπάρα έτρωγε ύψος από το
+   περιεχόμενο χωρίς λόγο. */
+@media (min-width: 880px) { :root { --header-h: 62px; } }
 .hdr__in {
   height: var(--header-h);
   display: flex; align-items: center; gap: 12px;
   max-width: 1080px; margin-inline: auto; padding-inline: clamp(16px, 4.5vw, 28px);
 }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; margin-right: auto; min-width: 0; }
-.brand img { height: 32px; width: auto; border: var(--bw) solid var(--line); border-radius: var(--r); }
+/* object-fit: contain ώστε το σήμα να μη στραβώσει ποτέ, όποιες κι αν
+   είναι οι διαστάσεις του αρχείου που θα ανεβάσει ο ιδιοκτήτης. */
+.brand img { height: 30px; width: auto; object-fit: contain; border: var(--bw) solid var(--line); border-radius: var(--r); }
 [data-theme="a"] .brand img { border: 0; mix-blend-mode: multiply; }
 [data-theme="b"] .brand img { border: 0; border-radius: 3px; }
-.brand__txt { font-family: var(--ff-disp); font-weight: var(--disp-w); font-size: 1rem; letter-spacing: -.01em; line-height: 1; white-space: nowrap; }
+/* line-height: 1 έκοβε τα πάνω-κάτω άκρα των γραμμάτων κατά ένα εικονοστοιχείο
+   (scrollHeight 30 σε κουτί 29). Με 1.12 χωράνε ολόκληρα. */
+.brand__txt { font-family: var(--ff-disp); font-weight: var(--disp-w); font-size: .98rem; letter-spacing: -.01em; line-height: 1.12; white-space: nowrap; }
 .brand__txt small {
-  display: block; font-family: var(--ff-num); font-weight: 400;
-  font-size: .54rem; letter-spacing: .18em; color: var(--muted); margin-top: 4px;
+  display: block; font-family: var(--ff-num); font-weight: 400; line-height: 1.3;
+  font-size: .54rem; letter-spacing: .18em; color: var(--muted); margin-top: 2px;
 }
 [data-theme="b"] .brand__txt { font-size: 1.24rem; letter-spacing: 0; }
 
@@ -212,7 +219,7 @@ p { margin: 0 0 1em; }
 .lang button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
 
 .burger {
-  display: grid; place-items: center; width: 40px; height: 40px; flex: none; cursor: pointer;
+  display: grid; place-items: center; width: 38px; height: 38px; flex: none; cursor: pointer;
   background: none; border: var(--bw) solid var(--line); border-radius: var(--r);
 }
 .burger span { display: block; width: 16px; height: 2px; background: var(--ink); box-shadow: 0 -5px var(--ink), 0 5px var(--ink); }

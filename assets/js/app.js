@@ -305,7 +305,7 @@
       hdr.innerHTML =
         '<div class="hdr__in">' +
           '<a class="brand" href="index.html">' +
-            '<img src="assets/img/logo.jpg" alt="' + b.name + '" width="48" height="32">' +
+            '<img src="assets/img/logo.jpg" alt="' + b.name + '" width="45" height="30">' +
             '<span class="brand__txt">HAIR MANIA<small>VALKANIS</small></span>' +
           '</a>' +
           '<nav class="nav">' + navLinks(page) + '</nav>' +
