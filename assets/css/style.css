@@ -644,30 +644,32 @@ legend .n { font-family: var(--ff-num); font-size: .72rem; font-weight: 400; let
 
 /* ---------- εβδομαδιαία εικόνα ---------- */
 .wk { border: var(--bw) solid var(--line); border-radius: var(--r); overflow-x: auto; }
-.wk__grid { display: grid; grid-template-columns: 46px repeat(7, minmax(74px, 1fr)); min-width: 560px; }
+/* Οι επτά μέρες πρέπει να χωράνε ΟΛΕΣ, και η Κυριακή, χωρίς οριζόντιο
+   σκρολάρισμα — αλλιώς ο ιδιοκτήτης νομίζει ότι λείπει μέρα. */
+.wk__grid { display: grid; grid-template-columns: 38px repeat(7, minmax(0, 1fr)); min-width: 330px; }
 .wk__hd {
   position: sticky; top: 0; z-index: 2; background: var(--bg);
-  border-bottom: var(--bw) solid var(--line); padding: 7px 2px; text-align: center;
-  font-family: var(--ff-num); font-size: .6rem; letter-spacing: .06em; color: var(--muted);
+  border-bottom: var(--bw) solid var(--line); padding: 6px 1px; text-align: center;
+  font-family: var(--ff-num); font-size: .55rem; letter-spacing: .02em; color: var(--muted);
 }
-.wk__hd b { display: block; font-size: 1rem; color: var(--ink); font-weight: 500; margin-top: 2px; }
+.wk__hd b { display: block; font-size: .92rem; color: var(--ink); font-weight: 500; margin-top: 2px; }
 .wk__hd.is-today { background: var(--accent); color: var(--on-accent); }
 .wk__hd.is-today b { color: inherit; }
 .wk__hd.is-closed b { color: var(--muted); text-decoration: line-through; }
 .wk__time {
   grid-column: 1; border-right: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
-  font-family: var(--ff-num); font-size: .58rem; color: var(--muted);
-  padding: 2px 4px; text-align: right;
+  font-family: var(--ff-num); font-size: .52rem; color: var(--muted);
+  padding: 2px 3px; text-align: right;
 }
 .wk__cell { border-right: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); min-height: 26px; cursor: pointer; }
 .wk__cell:hover { background: var(--surface); }
-.wk__cell.is-off { background: repeating-linear-gradient(45deg, var(--surface) 0 6px, var(--bg) 6px 12px); cursor: default; }
+.wk__cell.is-off { background: repeating-linear-gradient(45deg, var(--line-soft) 0 4px, var(--surface) 4px 9px); cursor: default; }
 .wk__ev {
-  margin: 1px; padding: 3px 4px; overflow: hidden; cursor: pointer;
+  margin: 1px; padding: 2px 3px; overflow: hidden; cursor: pointer;
   background: var(--invert-bg); color: var(--invert-ink); border-radius: var(--r);
   font-size: .62rem; line-height: 1.2;
 }
-.wk__ev b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wk__ev b { display: block; font-weight: 600; font-size: .58rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wk__ev small { font-family: var(--ff-num); font-size: .55rem; opacity: .75; }
 .wk__ev--block { background: var(--surface-2); color: var(--muted); border: 1px dashed var(--line-soft); }
 .wk__ev--online { background: var(--accent); color: var(--on-accent); }

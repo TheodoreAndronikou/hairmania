@@ -267,7 +267,7 @@
         });
         html += '<div class="wk__cell' + (inHours ? '' : ' is-off') + '"' +
                 ' style="grid-column:' + (col + 2) + ';grid-row:' + (r + 2) + '"' +
-                (inHours ? ' data-go="' + d + '"' : '') + '></div>';
+                (inHours ? ' data-go="' + d + '" data-at="' + H.min2hm(m) + '"' : '') + '></div>';
       }
 
       (day_.items || []).forEach(function (it) {
@@ -295,7 +295,7 @@
     H.fixGreekCaps(host);
 
     host.querySelectorAll('[data-go]').forEach(function (c) {
-      c.addEventListener('click', function () { day = c.dataset.go; setView('day'); });
+      c.addEventListener('click', function () { slotMenu(c.dataset.go, c.dataset.at); });
     });
     host.querySelectorAll('.wk__ev').forEach(function (e) {
       e.addEventListener('click', function () {
@@ -404,7 +404,7 @@
   }
 
   /* ---------- ενέργειες ---------- */
-  document.getElementById('adm-walkin').addEventListener('click', function () {
+  function openWalkin(preset) {
     openSheet('Νέο ραντεβού',
       '<div class="field"><label for="w-name">Όνομα</label><input id="w-name" type="text" placeholder="π.χ. Γιώργος"></div>' +
       '<div class="field"><label for="w-phone">Τηλέφωνο (προαιρετικό)</label><input id="w-phone" type="tel" inputmode="numeric" placeholder="69…"></div>' +
@@ -425,10 +425,11 @@
             });
           });
         });
+        if (preset) document.getElementById('w-time').value = preset;
       });
-  });
+  }
 
-  document.getElementById('adm-block').addEventListener('click', function () {
+  function openBlock(preset) {
     openSheet('Μπλοκάρισμα ωρών',
       '<div class="field"><label for="b-time">Από</label><select id="b-time" class="adm__sel">' + timeOptions() + '</select></div>' +
       '<div class="field"><label for="b-min">Για πόσο</label><select id="b-min" class="adm__sel">' +
@@ -447,10 +448,11 @@
             });
           });
         });
+        if (preset) document.getElementById('b-time').value = preset;
       });
-  });
+  }
 
-  document.getElementById('adm-closeday').addEventListener('click', function () {
+  function openClose() {
     openSheet('Διακοπές / ρεπό',
       '<p class="muted" style="font-size:.85rem;margin-top:0">Διάλεξε ολόκληρο διάστημα — δεν χρειάζεται μέρα-μέρα.</p>' +
       '<div class="field-row">' +
@@ -481,7 +483,37 @@
           run(go, function () { return DB.adminClose(pin, from.value, to.value, document.getElementById('c-note').value.trim()); });
         });
       });
-  });
+  }
+
+  document.getElementById('adm-walkin').addEventListener('click', function () { openWalkin(); });
+  document.getElementById('adm-block').addEventListener('click', function () { openBlock(); });
+  document.getElementById('adm-closeday').addEventListener('click', function () { openClose(); });
+
+  /**
+   * Πάτημα σε ελεύθερο κελί της εβδομάδας: αντί να πετάει τον χρήστη
+   * στην ημερήσια όψη και να ξαναδιαλέγει ώρα, ανοίγουμε κατευθείαν τις
+   * ενέργειες με τη μέρα και την ώρα ήδη συμπληρωμένες.
+   */
+  function slotMenu(dateISO, hhmm) {
+    day = dateISO;
+    data = (week && week.data[dateISO]) || data;
+    var D = H.days(), p = H.parseISO(dateISO);
+    var label = H.grUpper(D.short[H.dowOf(dateISO)] + ' ' + p.d + ' ' + D.months[p.m - 1]) + ' · ' + hhmm;
+
+    openSheet(label,
+      '<div style="display:grid;gap:8px">' +
+        '<button class="btn btn--accent btn--wide" id="sm-new">+ ΝΕΟ ΡΑΝΤΕΒΟΥ</button>' +
+        '<button class="btn btn--ghost btn--wide" id="sm-block">ΜΠΛΟΚΑΡΕ ΩΡΕΣ</button>' +
+        '<button class="btn btn--ghost btn--wide" id="sm-close">ΔΙΑΚΟΠΕΣ / ΡΕΠΟ</button>' +
+        '<button class="btn btn--ghost btn--wide" id="sm-day">ΑΝΟΙΞΕ ΤΗ ΜΕΡΑ</button>' +
+      '</div>',
+      function () {
+        document.getElementById('sm-new').addEventListener('click', function () { openWalkin(hhmm); });
+        document.getElementById('sm-block').addEventListener('click', function () { openBlock(hhmm); });
+        document.getElementById('sm-close').addEventListener('click', function () { openClose(); });
+        document.getElementById('sm-day').addEventListener('click', function () { closeSheet(); setView('day'); });
+      });
+  }
 
   /**
    * Δύο διαφορετικές πράξεις, σκόπιμα ξεχωριστές:
