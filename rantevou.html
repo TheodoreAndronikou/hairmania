@@ -23,15 +23,6 @@
     <h1 data-i18n="bk.h2"></h1>
     <p class="lead" data-i18n="bk.sub"></p>
 
-    <div class="vac" id="bk-vac" data-show="false">
-      <img src="assets/img/vacation.jpg" alt="">
-      <div>
-        <h3 data-i18n="vac.title"></h3>
-        <p id="bk-vac-text"></p>
-        <p class="muted" style="font-size:.86rem;margin-top:4px" data-i18n="vac.body"></p>
-      </div>
-    </div>
-
     <div id="bk-wizard">
       <div class="steps" aria-hidden="true">
         <div class="step" data-state="active"><span data-i18n="bk.step1"></span></div>
@@ -51,6 +42,17 @@
           <legend><span class="n">2</span><span data-i18n="bk.l2"></span></legend>
           <div id="bk-days"></div>
         </fieldset>
+
+        <!-- Όχι στην κορυφή: εκεί το έβλεπε κάποιος πριν καν κοιτάξει
+             ημερομηνία και έφευγε νομίζοντας ότι το μαγαζί είναι κλειστό. -->
+        <div class="vac" id="bk-vac" data-show="false">
+          <img src="assets/img/vacation.jpg" alt="">
+          <div>
+            <h3 data-i18n="vac.title"></h3>
+            <p id="bk-vac-text"></p>
+            <p class="muted" style="font-size:.86rem;margin-top:4px" data-i18n="vac.body"></p>
+          </div>
+        </div>
 
         <fieldset id="fs-3">
           <legend><span class="n">3</span><span data-i18n="bk.l3"></span></legend>

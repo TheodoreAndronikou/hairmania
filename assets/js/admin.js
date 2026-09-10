@@ -576,6 +576,21 @@
       : p0.d + ' ' + D.months[p0.m - 1] + ' – ' + p1.d + ' ' + D.months[p1.m - 1];
   }
 
+  /**
+   * Καταχώρηση σε ώρα που πέρασε.
+   *
+   * Δεν την απαγορεύουμε: ο κουρέας θέλει να γράψει τον παππού που ήρθε
+   * χθες απροειδοποίητα, ώστε να βγαίνει σωστά ο απολογισμός. Αλλά δεν
+   * πρέπει να γίνεται κατά λάθος — γι' αυτό φαίνεται και στη φόρμα και
+   * πάνω στο κουμπί.
+   */
+  function isPast(hhmm) {
+    var now = H.nowAthens();
+    if (day < now.iso) return true;
+    if (day > now.iso) return false;
+    return H.hm2min(hhmm) < now.minutes;
+  }
+
   /** «ΔΕΥ 7 ΣΕΠ» — μπαίνει στους τίτλους των φύλλων. */
   function dayLabel() {
     var D = H.days(), p = H.parseISO(day);
@@ -595,13 +610,26 @@
       '<div class="field"><label for="w-svc">Υπηρεσία</label><select id="w-svc" class="adm__sel">' +
         C.services.map(function (s) { return '<option value="' + s.id + '">' + s.el + '</option>'; }).join('') +
       '</select></div>' +
+      '<div id="w-past" hidden><p class="adm__past"><b>ΠΡΟΣΟΧΗ — ΠΕΡΑΣΜΕΝΗ ΩΡΑ</b>' +
+        '<span>Καταχωρείς ραντεβού που έχει ήδη περάσει. Σωστό αν γράφεις κάποιον που ήρθε ' +
+        'και ξέχασες να τον περάσεις. Λάθος αν ήθελες μελλοντική μέρα.</span></p></div>' +
       '<button class="btn btn--accent btn--wide" id="w-go">ΚΑΤΑΧΩΡΗΣΗ</button>',
       function () {
-        var go = document.getElementById('w-go');
+        var go = document.getElementById('w-go'), time = document.getElementById('w-time');
+
+        function markPast() {
+          var past = isPast(time.value);
+          document.getElementById('w-past').hidden = !past;
+          go.textContent = past ? 'ΚΑΤΑΧΩΡΗΣΗ ΣΤΑ ΠΕΡΑΣΜΕΝΑ' : 'ΚΑΤΑΧΩΡΗΣΗ';
+          go.className = 'btn btn--wide ' + (past ? 'btn--past' : 'btn--accent');
+        }
+        time.addEventListener('change', markPast);
+        markPast();
+
         go.addEventListener('click', function () {
           run(go, function () {
             return DB.adminAdd(pin, {
-              start: startOf(day, document.getElementById('w-time').value),
+              start: startOf(day, time.value),
               serviceId: document.getElementById('w-svc').value,
               name: document.getElementById('w-name').value.trim(),
               phone: document.getElementById('w-phone').value.trim()

@@ -409,8 +409,21 @@
     renderBar(ready, svc);
   }
 
-  /* Κάτω μπάρα κινητού: όσο λείπει κάτι δείχνει τηλέφωνο/ραντεβού,
-     μόλις συμπληρωθεί γίνεται σύνοψη + κουμπί επιβεβαίωσης. */
+  /** Είναι συμπληρωμένα όνομα και τηλέφωνο; (χωρίς να βάψει τα πεδία κόκκινα) */
+  function detailsOk() {
+    var ph = field('f-phone').value.replace(/[^\d]/g, '');
+    var em = field('f-email').value.trim();
+    return field('f-name').value.trim().length >= 2 &&
+           /^(69\d{8}|2\d{9})$/.test(ph) &&
+           (em === '' || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em));
+  }
+
+  /* Κάτω μπάρα κινητού.
+     ΠΡΙΝ: έδειχνε «Επιβεβαίωση ραντεβού» από τη στιγμή που διάλεγες ώρα,
+     δηλαδή πριν γράψεις καν όνομα. Το πάτημα έπεφτε στον έλεγχο, δεν
+     γινόταν τίποτα ορατό, και ο κόσμος νόμιζε ότι χάλασε το κουμπί.
+     ΤΩΡΑ: όσο λείπουν στοιχεία, η μπάρα σε πάει σε αυτά· γίνεται κουμπί
+     επιβεβαίωσης μόνο όταν πραγματικά μπορεί να επιβεβαιώσει. */
   function renderBar(ready, svc) {
     var bar = document.querySelector('[data-bar]');
     if (!bar) return;
@@ -418,15 +431,22 @@
       if (bar.dataset.mode !== 'default') { bar.innerHTML = H.defaultBar(); bar.dataset.mode = 'default'; H.applyLang(); }
       return;
     }
+    var can = detailsOk();
     bar.dataset.mode = 'summary';
     bar.innerHTML =
       '<span class="bar__sum"><span class="k">' + t('bk.sum') + '</span>' +
       '<span class="v">' + H.fmtDateShort(S.date) + ' · ' + S.time + ' · ' + svc.price + '€</span></span>' +
-      '<button type="button" class="btn btn--accent btn--go" id="bar-go">' + t('bk.submit') + '</button>';
+      '<button type="button" class="btn ' + (can ? 'btn--accent' : 'btn--ghost') + ' btn--go" id="bar-go">' +
+        (can ? t('bk.submit') : t('bk.bar_fill')) + '</button>';
     H.fixGreekCaps(bar);
     var go = document.getElementById('bar-go');
     if (go) go.addEventListener('click', function () {
-      if (form.requestSubmit) form.requestSubmit(); else el.submit.click();
+      if (detailsOk()) {
+        if (form.requestSubmit) form.requestSubmit(); else el.submit.click();
+      } else {
+        var name = field('f-name');
+        goToStep(4, name.value.trim().length < 2 ? name : field('f-phone'));
+      }
     });
   }
 
@@ -443,6 +463,15 @@
     ok = invalid('f-email', em !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) && ok;
     return ok;
   }
+
+  /* Η μπάρα αλλάζει καθώς γράφει — αλλιώς θα έμενε στο «συμπλήρωσε» */
+  ['f-name', 'f-phone', 'f-email'].forEach(function (id) {
+    var f = document.getElementById(id);
+    if (f) f.addEventListener('input', function () {
+      var bar = document.querySelector('[data-bar]');
+      if (bar && bar.dataset.mode === 'summary') renderBar(true, findSvc(S.service));
+    });
+  });
 
   /* ---------------- submit ---------------- */
   form.addEventListener('submit', function (ev) {
