@@ -1,0 +1,54 @@
+# =============================================================
+# Κρατάει τη βάση ξύπνια.
+#
+# Τα δωρεάν έργα του Supabase «κοιμούνται» αν περάσουν 7 μέρες
+# χωρίς ΚΑΜΙΑ κλήση. Σε ένα καινούργιο site με λίγη κίνηση αυτό
+# είναι υπαρκτό — και τότε ο επόμενος πελάτης που θα μπει να
+# κλείσει ραντεβού βρίσκει σφάλμα.
+#
+# Μία κλήση την ημέρα το αποτρέπει. Διαβάζει μόνο διαθεσιμότητα,
+# δεν γράφει τίποτα.
+#
+# Το κλειδί που χρησιμοποιεί είναι το ΔΗΜΟΣΙΟ anon key — το ίδιο
+# που ούτως ή άλλως υπάρχει μέσα στη σελίδα. Δεν είναι μυστικό.
+# =============================================================
+name: keepalive
+
+on:
+  schedule:
+    - cron: '17 7 * * *'      # κάθε μέρα ~10:17 ώρα Ελλάδας
+  workflow_dispatch:          # και με το χέρι, από την καρτέλα Actions
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Παίρνουμε διεύθυνση και κλειδί από το ίδιο το config.js, ώστε
+      # αν αλλάξουν κάποτε να μη χρειαστεί να θυμηθεί κανείς κι αυτό.
+      - name: Διάβασε τα στοιχεία από το config.js
+        id: cfg
+        run: |
+          URL=$(grep -oE "https://[a-z0-9]+\.supabase\.co" assets/js/config.js | head -1)
+          KEY=$(grep -oE "eyJ[A-Za-z0-9._-]+" assets/js/config.js | head -1)
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "Δεν βρέθηκαν στοιχεία Supabase στο config.js"; exit 1
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Ξύπνα τη βάση
+        run: |
+          CODE=$(curl -sS -o /tmp/out.json -w '%{http_code}' \
+            -X POST "${{ steps.cfg.outputs.url }}/rest/v1/rpc/availability" \
+            -H "apikey: ${{ steps.cfg.outputs.key }}" \
+            -H "Authorization: Bearer ${{ steps.cfg.outputs.key }}" \
+            -H "Content-Type: application/json" \
+            -d '{"days":1}')
+          echo "HTTP $CODE"
+          head -c 200 /tmp/out.json; echo
+          if [ "$CODE" != "200" ]; then
+            echo "::error::Η βάση δεν απάντησε σωστά (HTTP $CODE). Μπορεί να έχει παγώσει — δες το Supabase dashboard."
+            exit 1
+          fi
