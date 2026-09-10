@@ -1,14 +1,12 @@
 /* =============================================================
    Διαχειριστικό κουρείου
 
-   ΜΙΑ ΠΗΓΗ ΑΛΗΘΕΙΑΣ: το Google Calendar του καταστήματος.
-   Ό,τι γράφεται εδώ πάει στον server και το βλέπουν όλοι — δεν
-   μένει σε αυτό το κινητό. Ο κωδικός ελέγχεται ΣΤΟΝ SERVER.
+   ΜΙΑ ΠΗΓΗ ΑΛΗΘΕΙΑΣ: η βάση (Supabase / PostgreSQL).
+   Ό,τι γράφεται εδώ πάει στη βάση και το βλέπουν όλοι — δεν μένει
+   σε αυτό το κινητό. Ο κωδικός ελέγχεται ΣΤΗ ΒΑΣΗ, ποτέ εδώ.
 
-   Τι λείπει μέχρι να μπει η πραγματική βάση (MySQL):
-     • ταχύτητα — το Apps Script θέλει 2-10 δευτ. ανά ενέργεια
-     • ο κωδικός ταξιδεύει με κάθε αίτημα (αρκετό για ένα κουρείο,
-       όχι για σοβαρό σύστημα)
+   Γνωστός συμβιβασμός: ο κωδικός ταξιδεύει με κάθε αίτημα. Αρκετό
+   για ένα κουρείο· όχι για σύστημα με πολλούς χρήστες.
    ============================================================= */
 (function () {
   'use strict';
@@ -18,6 +16,10 @@
 
   var H = window.HMV, C = window.CONFIG;
   var DB = window.HMV_DB;
+  if (!DB) {                       /* χωρίς κλειδιά δεν υπάρχει διαχειριστικό */
+    gate.innerHTML = '<p class="adm__empty">Λείπουν τα στοιχεία σύνδεσης με τη βάση (config.js).</p>';
+    return;
+  }
 
   /** Ημερομηνία+ώρα Αθήνας -> πραγματικό Date. */
   function startOf(dateISO, hhmm) {
@@ -34,22 +36,6 @@
   var loadSeq = 0;
 
   try { pin = sessionStorage.getItem('hmv_pin') || ''; } catch (e) {}
-
-  /* ---------- επικοινωνία ---------- */
-  function api(params) {
-    var qs = Object.keys(params).map(function (k) {
-      return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
-    }).join('&');
-    return fetch(C.API_URL + '?' + qs, { redirect: 'follow' }).then(function (r) { return r.json(); });
-  }
-  function send(body) {
-    body.pin = pin;
-    return fetch(C.API_URL, {
-      method: 'POST', redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(body)
-    }).then(function (r) { return r.json(); });
-  }
 
   /* ---------- είσοδος ---------- */
   function tryPin() {
@@ -81,14 +67,62 @@
 
   function unlock() {
     gate.hidden = true; panel.hidden = false;
+    pinWarn();
     document.getElementById('adm-prev').innerHTML = H.icon('left');
     document.getElementById('adm-next').innerHTML = H.icon('right');
     document.getElementById('sheet-x').innerHTML = H.icon('close');
   }
 
+  var eye = document.getElementById('pw-eye');
+  if (eye) eye.addEventListener('click', function () {
+    var f = document.getElementById('pw');
+    var show = f.type === 'password';
+    f.type = show ? 'text' : 'password';
+    eye.textContent = show ? 'ΚΡΥΨΕ' : 'ΔΕΙΞΕ';
+    f.focus();
+  });
+
   document.getElementById('gate-go').addEventListener('click', tryPin);
   document.getElementById('pw').addEventListener('keydown', function (e) { if (e.key === 'Enter') tryPin(); });
   if (pin) { unlock(); load(); }
+
+  /* Ο κωδικός φεύγει από το schema.sql σαν 1234. Αν δεν αλλάξει, όποιος
+     μαντέψει τη διεύθυνση βλέπει ονόματα και τηλέφωνα πελατών. */
+  function pinWarn() {
+    var box = document.getElementById('adm-warn');
+    box.hidden = pin !== '1234';
+  }
+
+  function openPin() {
+    openSheet('Αλλαγή κωδικού',
+      '<div class="field"><label for="p-new">Νέος κωδικός</label>' +
+      '<input id="p-new" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="τουλάχιστον 4 χαρακτήρες"></div>' +
+      '<div class="field"><label for="p-again">Ξαναγράψ\' τον</label>' +
+      '<input id="p-again" type="text" autocapitalize="off" autocorrect="off" spellcheck="false"></div>' +
+      '<p class="adm__note">Γράψ\' τον και κάπου έξω από το κινητό. Αν χαθεί, θέλει επέμβαση στη βάση.</p>' +
+      '<button class="btn btn--accent btn--wide" id="p-go">ΑΛΛΑΞΕ ΤΟΝ</button>',
+      function () {
+        var go = document.getElementById('p-go');
+        go.addEventListener('click', function () {
+          var v1 = document.getElementById('p-new').value.trim();
+          var v2 = document.getElementById('p-again').value.trim();
+          if (v1.length < 4) { alertSheet('Θέλει τουλάχιστον 4 χαρακτήρες'); return; }
+          if (v1 !== v2) { alertSheet('Οι δύο κωδικοί δεν είναι ίδιοι'); return; }
+          run(go, function () {
+            return DB.adminSetPin(pin, v1).then(function (res) {
+              if (res && res.ok) {
+                pin = v1;
+                try { sessionStorage.setItem('hmv_pin', pin); } catch (e) {}
+                pinWarn();
+              }
+              return res;
+            });
+          });
+        });
+      });
+  }
+  document.getElementById('adm-pin').addEventListener('click', openPin);
+  document.getElementById('adm-warn-go').addEventListener('click', openPin);
 
   document.getElementById('adm-out').addEventListener('click', function () {
     try { sessionStorage.removeItem('hmv_pin'); } catch (e) {}
@@ -288,7 +322,7 @@
       '<span><i style="background:var(--accent)"></i>online</span>' +
       '<span><i style="background:var(--invert-bg)"></i>με το χέρι</span>' +
       '<span><i style="background:var(--surface-2);border:1px dashed var(--line-soft)"></i>μπλοκάρισμα</span>' +
-      '<span>Πάτα κενό κελί για να πας σε εκείνη τη μέρα</span></div></div>';
+      '<span>Πάτα ελεύθερο κελί για ενέργειες</span></div></div>';
 
     var host = document.getElementById('adm-week');
     host.innerHTML = html;
@@ -316,10 +350,14 @@
     var host = document.getElementById('adm-list');
 
     if (data.closed !== null || !(data.hours || []).length) {
+      var byMe = data.closed !== null;
       host.innerHTML = '<div class="adm__closed">' + H.icon('close') +
         '<b>ΚΛΕΙΣΤΑ</b><span>' +
-        (data.closed !== null ? esc(data.closed || 'το έκλεισες εσύ') : 'εκτός ωραρίου') +
-        '</span></div>';
+        (byMe ? esc(data.closed || 'το έκλεισες εσύ') : 'εκτός ωραρίου') + '</span>' +
+        (byMe ? '<button class="btn btn--ghost" id="adm-reopen" style="margin-top:14px;padding:9px 16px;font-size:.7rem">ΞΑΝΑ ΑΝΟΙΞΕ ΤΗ ΜΕΡΑ</button>' : '') +
+        '</div>';
+      var rb = document.getElementById('adm-reopen');
+      if (rb) rb.addEventListener('click', askReopen);
       return;
     }
     if (!data.items.length) {
@@ -376,7 +414,13 @@
     var label = btn.textContent;
     btn.disabled = true; btn.textContent = 'ΑΠΟΘΗΚΕΥΕΤΑΙ…';
     fn().then(function (res) {
-      if (res && res.ok) { closeSheet(); load(); return; }
+      if (res && res.ok) {
+        closeSheet(); load();
+        /* Η ακύρωση πέρασε, αλλά χωρίς email: να μην το μάθει ο κουρέας
+           από τον πελάτη που θα εμφανιστεί στην πόρτα. */
+        if (res.emailOffline) toast('Ακυρώθηκε. Δεν στάλθηκε email — πάρε τον πελάτη τηλέφωνο.');
+        return;
+      }
       btn.disabled = false; btn.textContent = label;
       alertSheet(!res ? 'Δεν αποθηκεύτηκε — δοκίμασε ξανά'
         : res.error === 'BAD_PIN' ? 'Ο κωδικός δεν ισχύει'
@@ -387,6 +431,15 @@
       alertSheet('Δεν αποθηκεύτηκε — έλεγξε το ίντερνετ');
     });
   }
+  /** Μικρό μήνυμα που φεύγει μόνο του — δεν διακόπτει τη δουλειά. */
+  function toast(msg) {
+    var t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function () { t.remove(); }, 6000);
+  }
+
   function alertSheet(msg) {
     var p = document.createElement('p');
     p.className = 'hint hint--err';
@@ -395,20 +448,149 @@
     document.getElementById('sheet-body').appendChild(p);
   }
 
-  function timeOptions() {
-    var out = '', step = (C.booking && C.booking.slotStep) || 30;
-    ((data && data.hours) || []).forEach(function (r) {
-      for (var m = H.hm2min(r[0]); m < H.hm2min(r[1]); m += step) out += '<option>' + H.min2hm(m) + '</option>';
+  /**
+   * Οι ΠΡΑΓΜΑΤΙΚΑ ελεύθερες μισάωρες αυτής της μέρας.
+   *
+   * Πριν η λίστα ήταν σταθερή: έδειχνε 09:00-21:00 ακόμα κι όταν η ώρα
+   * ήταν πιασμένη, οπότε ο κουρέας το καταλάβαινε μόνο αφού πατούσε
+   * ΚΑΤΑΧΩΡΗΣΗ και έτρωγε «Η ώρα είναι ήδη πιασμένη».
+   */
+  function freeSlots() {
+    var stepM = (C.booking && C.booking.slotStep) || 30;
+
+    var ranges = ((data && data.hours) || []).map(function (r) {
+      return [H.hm2min(r[0]), H.hm2min(r[1])];
     });
-    return out || '<option>09:00</option>';
+    /* Κλειστή μέρα: δείχνουμε το κανονικό ωράριο, γιατί ο κουρέας μπορεί
+       να θέλει να γράψει κάποιον παρόλα αυτά. Το λέμε όμως καθαρά. */
+    var offday = !ranges.length;
+    if (offday) {
+      ranges = ((C.hours && C.hours[H.dowOf(day)]) || []).map(function (r) {
+        return [H.hm2min(r[0]), H.hm2min(r[1])];
+      });
+    }
+    if (!ranges.length) ranges = [[9 * 60, 21 * 60]];
+
+    var taken = ((data && data.items) || []).map(function (x) {
+      var s = H.hm2min(x.time);
+      return [s, s + (x.min || stepM)];
+    });
+
+    var slots = [];
+    ranges.forEach(function (r) {
+      for (var m = r[0]; m + stepM <= r[1]; m += stepM) {
+        var busy = taken.some(function (t) { return m < t[1] && m + stepM > t[0]; });
+        if (!busy) slots.push(m);
+      }
+    });
+
+    return { slots: slots, step: stepM, ranges: ranges, taken: taken, offday: offday };
+  }
+
+  /** Πόσα συνεχόμενα λεπτά μένουν ελεύθερα ξεκινώντας από αυτή την ώρα. */
+  function freeRunFrom(startM, free) {
+    var end = null;
+    free.ranges.forEach(function (r) { if (startM >= r[0] && startM < r[1]) end = r[1]; });
+    if (end === null) return free.step;
+    var stop = end;
+    free.taken.forEach(function (t) { if (t[0] >= startM && t[0] < stop) stop = t[0]; });
+    return Math.max(free.step, stop - startM);
+  }
+
+  /** Ποια ώρα να προεπιλεγεί: η ζητούμενη αν είναι ελεύθερη, αλλιώς η επόμενη. */
+  function pickSlot(free, preset) {
+    if (!free.slots.length) return null;
+    var want = preset ? H.hm2min(preset) : null;
+    if (want !== null && free.slots.indexOf(want) >= 0) return want;
+    if (want !== null) {
+      var next = free.slots.filter(function (m) { return m > want; })[0];
+      if (next !== undefined) return next;
+    }
+    var n = H.nowAthens();
+    if (day === n.iso) {
+      var soon = free.slots.filter(function (m) { return m >= n.minutes; })[0];
+      if (soon !== undefined) return soon;
+    }
+    return free.slots[0];
+  }
+
+  function slotOptions(free, chosen) {
+    return free.slots.map(function (m) {
+      return '<option value="' + H.min2hm(m) + '"' + (m === chosen ? ' selected' : '') + '>' +
+             H.min2hm(m) + '</option>';
+    }).join('');
+  }
+
+  /** Η γραμμή κάτω από το select: τι βλέπει και τι λείπει. */
+  function slotNote(free, preset, chosen) {
+    var bits = [];
+    if (free.offday) bits.push('Η μέρα είναι κλειστή — οι ώρες είναι από το κανονικό ωράριο.');
+    if (preset && chosen !== null && H.hm2min(preset) !== chosen) {
+      bits.push('Η ' + preset + ' είναι πιασμένη, μπήκε η ' + H.min2hm(chosen) + '.');
+    }
+    bits.push(free.slots.length + (free.slots.length === 1 ? ' ελεύθερη ώρα' : ' ελεύθερες ώρες'));
+    return '<p class="adm__note' + (free.offday ? ' adm__note--warn' : '') + '">' + bits.join(' ') + '</p>';
+  }
+
+  /** Όταν δεν έχει μείνει τίποτα ελεύθερο δεν έχει νόημα φόρμα. */
+  function sheetFull(title) {
+    openSheet(title,
+      '<div class="adm__empty" style="margin-bottom:14px">Δεν έμεινε ελεύθερη ώρα σε αυτή τη μέρα.</div>' +
+      '<button class="btn btn--ghost btn--wide" id="f-ok">ΕΝΤΑΞΕΙ</button>',
+      function () { document.getElementById('f-ok').addEventListener('click', closeSheet); });
+  }
+
+  /**
+   * Το admin_reopen σβήνει ΟΛΟΚΛΗΡΟ το διάστημα που περιέχει τη μέρα.
+   * Αν είχε κλείσει 10-20 Σεπτεμβρίου και πατήσει «ξανά άνοιξε» στις 12,
+   * ανοίγουν και οι δέκα μέρες. Πρέπει να το ξέρει ΠΡΙΝ πατήσει.
+   */
+  function askReopen() {
+    var span = (data && data.closedFrom && data.closedTo && data.closedFrom !== data.closedTo)
+      ? H.grUpper(rangeLabel(data.closedFrom, data.closedTo)) : null;
+
+    openSheet('Ξανά άνοιγμα',
+      '<p style="margin-top:0">' +
+        (span
+          ? 'Αυτή η μέρα ανήκει στο κλείσιμο <b>' + esc(span) + '</b>. Θα ξανανοίξει <b>ολόκληρο</b>.'
+          : 'Αν το είχες κλείσει σαν διάστημα (π.χ. διακοπές), θα ξανανοίξει <b>ολόκληρο το διάστημα</b>, όχι μόνο αυτή η μέρα.') +
+      '</p>' +
+      '<div style="display:grid;gap:8px;margin-top:16px">' +
+        '<button class="btn btn--accent btn--wide" id="r-yes">ΞΑΝΑ ΑΝΟΙΞΕ</button>' +
+        '<button class="btn btn--ghost btn--wide" id="r-no">ΑΚΥΡΟ</button>' +
+      '</div>',
+      function () {
+        var yes = document.getElementById('r-yes');
+        yes.addEventListener('click', function () {
+          run(yes, function () { return DB.adminReopen(pin, day); });
+        });
+        document.getElementById('r-no').addEventListener('click', closeSheet);
+      });
+  }
+
+  function rangeLabel(a1, b1) {
+    var D = H.days(), p0 = H.parseISO(a1), p1 = H.parseISO(b1);
+    return p0.m === p1.m
+      ? p0.d + '–' + p1.d + ' ' + D.months[p1.m - 1]
+      : p0.d + ' ' + D.months[p0.m - 1] + ' – ' + p1.d + ' ' + D.months[p1.m - 1];
+  }
+
+  /** «ΔΕΥ 7 ΣΕΠ» — μπαίνει στους τίτλους των φύλλων. */
+  function dayLabel() {
+    var D = H.days(), p = H.parseISO(day);
+    return D.short[H.dowOf(day)] + ' ' + p.d + ' ' + D.months[p.m - 1];
   }
 
   /* ---------- ενέργειες ---------- */
   function openWalkin(preset) {
-    openSheet('Νέο ραντεβού',
+    var free = freeSlots(), chosen = pickSlot(free, preset);
+    if (chosen === null) { sheetFull('Νέο ραντεβού'); return; }
+
+    openSheet('Νέο ραντεβού · ' + dayLabel(),
+      '<div class="field"><label for="w-time">Ώρα</label><select id="w-time" class="adm__sel">' +
+        slotOptions(free, chosen) + '</select></div>' + slotNote(free, preset, chosen) +
       '<div class="field"><label for="w-name">Όνομα</label><input id="w-name" type="text" placeholder="π.χ. Γιώργος"></div>' +
       '<div class="field"><label for="w-phone">Τηλέφωνο (προαιρετικό)</label><input id="w-phone" type="tel" inputmode="numeric" placeholder="69…"></div>' +
-      '<div class="field"><label for="w-time">Ώρα</label><select id="w-time" class="adm__sel">' + timeOptions() + '</select></div>' +
       '<div class="field"><label for="w-svc">Υπηρεσία</label><select id="w-svc" class="adm__sel">' +
         C.services.map(function (s) { return '<option value="' + s.id + '">' + s.el + '</option>'; }).join('') +
       '</select></div>' +
@@ -425,30 +607,49 @@
             });
           });
         });
-        if (preset) document.getElementById('w-time').value = preset;
       });
   }
 
   function openBlock(preset) {
-    openSheet('Μπλοκάρισμα ωρών',
-      '<div class="field"><label for="b-time">Από</label><select id="b-time" class="adm__sel">' + timeOptions() + '</select></div>' +
-      '<div class="field"><label for="b-min">Για πόσο</label><select id="b-min" class="adm__sel">' +
-        [30, 60, 90, 120, 180, 240].map(function (m) { return '<option value="' + m + '">' + m + ' λεπτά</option>'; }).join('') +
-      '</select></div>' +
+    var free = freeSlots(), chosen = pickSlot(free, preset);
+    if (chosen === null) { sheetFull('Μπλοκάρισμα ωρών'); return; }
+
+    openSheet('Μπλοκάρισμα · ' + dayLabel(),
+      '<div class="field"><label for="b-time">Από</label><select id="b-time" class="adm__sel">' +
+        slotOptions(free, chosen) + '</select></div>' + slotNote(free, preset, chosen) +
+      '<div class="field"><label for="b-min">Για πόσο</label><select id="b-min" class="adm__sel"></select></div>' +
       '<div class="field"><label for="b-note">Αιτία (προαιρετικό)</label><input id="b-note" type="text" placeholder="π.χ. συνεργείο"></div>' +
       '<button class="btn btn--accent btn--wide" id="b-go">ΜΠΛΟΚΑΡΕ</button>',
       function () {
+        var time = document.getElementById('b-time'), mins = document.getElementById('b-min');
+
+        /* Η διάρκεια δεν πρέπει να ξεπερνά το επόμενο ραντεβού ή το
+           κλείσιμο — αλλιώς η βάση το απορρίπτει και δεν καταλαβαίνει γιατί. */
+        function fillMinutes() {
+          var run_ = freeRunFrom(H.hm2min(time.value), free);
+          var opts = [30, 60, 90, 120, 180, 240].filter(function (m) { return m <= run_; });
+          if (!opts.length) opts = [free.step];
+          if (opts.indexOf(run_) < 0 && run_ > opts[opts.length - 1]) opts.push(run_);
+          mins.innerHTML = opts.map(function (m) {
+            var h_ = Math.floor(m / 60), r_ = m % 60;
+            var lbl = h_ ? (h_ + (r_ ? ':' + H.pad(r_) : '') + (r_ ? ' ώρες' : (h_ === 1 ? ' ώρα' : ' ώρες'))) : (m + ' λεπτά');
+            return '<option value="' + m + '"' + (m === run_ ? ' data-max="1"' : '') + '>' + lbl +
+                   (m === run_ && run_ > free.step ? ' (ως το τέλος)' : '') + '</option>';
+          }).join('');
+        }
+        time.addEventListener('change', fillMinutes);
+        fillMinutes();
+
         var go = document.getElementById('b-go');
         go.addEventListener('click', function () {
           run(go, function () {
             return DB.adminBlock(pin, {
-              start: startOf(day, document.getElementById('b-time').value),
-              minutes: +document.getElementById('b-min').value,
+              start: startOf(day, time.value),
+              minutes: +mins.value,
               note: document.getElementById('b-note').value.trim()
             });
           });
         });
-        if (preset) document.getElementById('b-time').value = preset;
       });
   }
 
@@ -495,23 +696,27 @@
    * ενέργειες με τη μέρα και την ώρα ήδη συμπληρωμένες.
    */
   function slotMenu(dateISO, hhmm) {
-    day = dateISO;
-    data = (week && week.data[dateISO]) || data;
+    /* Δεν αλλάζουμε ημέρα εδώ: αν κοιτάξει ένα κελί και κλείσει το φύλλο,
+       η ημερήσια όψη δεν πρέπει να έχει πεταχτεί σε άλλη μέρα. */
+    function pickDay() {
+      day = dateISO;
+      data = (week && week.data[dateISO]) || data;
+    }
     var D = H.days(), p = H.parseISO(dateISO);
     var label = H.grUpper(D.short[H.dowOf(dateISO)] + ' ' + p.d + ' ' + D.months[p.m - 1]) + ' · ' + hhmm;
 
     openSheet(label,
       '<div style="display:grid;gap:8px">' +
-        '<button class="btn btn--accent btn--wide" id="sm-new">+ ΝΕΟ ΡΑΝΤΕΒΟΥ</button>' +
-        '<button class="btn btn--ghost btn--wide" id="sm-block">ΜΠΛΟΚΑΡΕ ΩΡΕΣ</button>' +
-        '<button class="btn btn--ghost btn--wide" id="sm-close">ΔΙΑΚΟΠΕΣ / ΡΕΠΟ</button>' +
-        '<button class="btn btn--ghost btn--wide" id="sm-day">ΑΝΟΙΞΕ ΤΗ ΜΕΡΑ</button>' +
+        '<button class="btn btn--primary btn--wide" id="sm-new">+ ΝΕΟ ΡΑΝΤΕΒΟΥ</button>' +
+        '<button class="btn btn--block btn--wide" id="sm-block">ΜΠΛΟΚΑΡΕ ΩΡΕΣ</button>' +
+        '<button class="btn btn--off btn--wide" id="sm-close">ΔΙΑΚΟΠΕΣ / ΡΕΠΟ</button>' +
+        '<button class="btn btn--ghost btn--wide" id="sm-day">ΔΕΣ ΟΛΗ ΤΗ ΜΕΡΑ</button>' +
       '</div>',
       function () {
-        document.getElementById('sm-new').addEventListener('click', function () { openWalkin(hhmm); });
-        document.getElementById('sm-block').addEventListener('click', function () { openBlock(hhmm); });
-        document.getElementById('sm-close').addEventListener('click', function () { openClose(); });
-        document.getElementById('sm-day').addEventListener('click', function () { closeSheet(); setView('day'); });
+        document.getElementById('sm-new').addEventListener('click', function () { pickDay(); openWalkin(hhmm); });
+        document.getElementById('sm-block').addEventListener('click', function () { pickDay(); openBlock(hhmm); });
+        document.getElementById('sm-close').addEventListener('click', function () { pickDay(); openClose(); });
+        document.getElementById('sm-day').addEventListener('click', function () { pickDay(); closeSheet(); setView('day'); });
       });
   }
 

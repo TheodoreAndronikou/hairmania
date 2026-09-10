@@ -25,7 +25,13 @@
       </div>
       <div class="field">
         <label for="pw">Κωδικός</label>
-        <input id="pw" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••">
+        <!-- ΧΩΡΙΣ inputmode="numeric": έβγαζε αριθμητικό πληκτρολόγιο στο
+             κινητό, οπότε ο κωδικός με γράμματα ήταν αδύνατο να γραφτεί. -->
+        <div class="field__pw">
+          <input id="pw" type="password" autocomplete="current-password"
+                 autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Ο κωδικός σου">
+          <button type="button" id="pw-eye" class="field__eye" aria-label="Δείξε τον κωδικό">ΔΕΙΞΕ</button>
+        </div>
         <p class="field__err" id="pw-err" style="display:none">Λάθος κωδικός</p>
       </div>
       <button class="btn btn--accent btn--wide" id="gate-go">ΕΙΣΟΔΟΣ</button>
@@ -33,6 +39,12 @@
 
     <!-- ΠΙΝΑΚΑΣ -->
     <div id="panel" hidden>
+      <div class="adm__warn" id="adm-warn" hidden>
+        <b>Ο κωδικός είναι ακόμα ο εργοστασιακός (1234).</b>
+        <span>Όποιος βρει τη διεύθυνση βλέπει ονόματα και τηλέφωνα πελατών.</span>
+        <button class="btn btn--wide" id="adm-warn-go">ΑΛΛΑΞΕ ΤΟΝ ΤΩΡΑ</button>
+      </div>
+
       <div class="adm__tabs" role="tablist">
         <button class="adm__tab" id="tab-day" role="tab" aria-selected="true">ΜΕΡΑ</button>
         <button class="adm__tab" id="tab-week" role="tab" aria-selected="false">ΕΒΔΟΜΑΔΑ</button>
@@ -53,16 +65,17 @@
       <div id="adm-week" hidden></div>
 
       <div class="adm__actions">
-        <button class="btn btn--accent btn--wide" id="adm-walkin">+ ΝΕΟ ΡΑΝΤΕΒΟΥ</button>
-        <button class="btn btn--ghost btn--wide" id="adm-block">ΜΠΛΟΚΑΡΕ ΩΡΕΣ</button>
-        <button class="btn btn--ghost btn--wide" id="adm-closeday">ΔΙΑΚΟΠΕΣ / ΡΕΠΟ</button>
+        <button class="btn btn--primary btn--wide" id="adm-walkin">+ ΝΕΟ ΡΑΝΤΕΒΟΥ</button>
+        <button class="btn btn--block btn--wide" id="adm-block">ΜΠΛΟΚΑΡΕ ΩΡΕΣ</button>
+        <button class="btn btn--off btn--wide" id="adm-closeday">ΔΙΑΚΟΠΕΣ / ΡΕΠΟ</button>
       </div>
 
       <p class="muted" style="font-size:.72rem;margin-top:22px;text-align:center">
-        Συνδεδεμένο με το ημερολόγιο του καταστήματος.<br>
-        Ό.τι γράφεις εδώ το βλέπουν όλοι.
+        Συνδεδεμένο με το βιβλίο ραντεβού του καταστήματος.<br>
+        Ό,τι γράφεις εδώ το βλέπουν όλοι, αμέσως.
       </p>
-      <p style="text-align:center;margin-top:10px">
+      <p style="text-align:center;margin-top:10px;display:flex;gap:8px;justify-content:center">
+        <button class="btn btn--ghost" id="adm-pin" style="padding:8px 16px;font-size:.7rem">ΑΛΛΑΞΕ ΚΩΔΙΚΟ</button>
         <button class="btn btn--ghost" id="adm-out" style="padding:8px 16px;font-size:.7rem">ΕΞΟΔΟΣ</button>
       </p>
     </div>

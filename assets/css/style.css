@@ -248,6 +248,19 @@ p { margin: 0 0 1em; }
 .btn--accent { background: var(--accent); color: var(--on-accent); }
 .btn--accent:hover { filter: brightness(.94); }
 .btn--ghost:hover { background: var(--surface); }
+/* Τα κουμπιά ενεργειών παίρνουν το χρώμα αυτού που φτιάχνουν, ώστε το
+   διαχειριστικό να διαβάζεται σαν το ημερολόγιο: μαύρο = ραντεβού με το
+   χέρι, γκρι διακεκομμένο = μπλοκάρισμα, ριγέ = κλειστή μέρα. */
+.btn--block {
+  background: var(--surface-2); color: var(--ink);
+  border-style: dashed; border-color: var(--line-soft);
+}
+.btn--block:hover { filter: brightness(.96); }
+.btn--off {
+  background: repeating-linear-gradient(45deg, var(--line-soft) 0 4px, var(--surface) 4px 9px);
+  color: var(--ink);
+}
+.btn--off:hover { filter: brightness(.96); }
 .btn--wide { width: 100%; }
 .btn[disabled] { opacity: .4; pointer-events: none; }
 [data-theme="b"] .btn { text-transform: none; letter-spacing: .01em; font-weight: 700; }
@@ -624,7 +637,10 @@ legend .n { font-family: var(--ff-num); font-size: .72rem; font-weight: 400; let
   border: var(--bw) solid var(--line); border-radius: var(--r); background: var(--bg);
   font-family: var(--ff-num); font-size: .64rem; letter-spacing: .08em;
 }
-.adm__today:hover { background: var(--accent); color: var(--on-accent); }
+/* Το κίτρινο μένει εδώ: «σήμερα» στο πλέγμα είναι ήδη κίτρινο, οπότε το
+   κουμπί και η στήλη της ημέρας ταιριάζουν. */
+.adm__today { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 700; }
+.adm__today:hover { filter: brightness(.94); }
 
 /* Η ημερομηνία πατιέται και ανοίγει επιλογέα — αλλιώς θέλει
    δεκαπέντε πατήματα στα βελάκια για να πας μια βδομάδα μπροστά. */
@@ -678,7 +694,39 @@ legend .n { font-family: var(--ff-num); font-size: .72rem; font-weight: 400; let
   border-top: var(--bw) solid var(--line);
   font-family: var(--ff-num); font-size: .6rem; color: var(--muted);
 }
+.toast {
+  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 200;
+  max-width: min(92vw, 420px); padding: 13px 16px;
+  background: var(--invert-bg); color: var(--invert-ink); border-radius: var(--r);
+  font-family: var(--ff-num); font-size: .74rem; line-height: 1.4; text-align: center;
+  box-shadow: 0 12px 34px -12px rgba(0,0,0,.6);
+}
+
+.adm__warn {
+  border: var(--bw) solid var(--err); border-radius: var(--r);
+  padding: 14px 16px; margin-bottom: 14px; display: grid; gap: 6px;
+  background: color-mix(in srgb, var(--err) 8%, var(--bg));
+}
+.adm__warn b { font-size: .88rem; color: var(--err); }
+.adm__warn span { font-family: var(--ff-num); font-size: .7rem; color: var(--muted); }
+.adm__warn .btn { margin-top: 6px; background: var(--err); color: #fff; border-color: var(--err); font-size: .72rem; padding: 11px 14px; }
+
+.adm__closed .btn { margin-top: 14px; }
+
+.adm__note { font-family: var(--ff-num); font-size: .68rem; color: var(--muted); margin: -6px 0 14px; }
+.adm__note--warn { color: var(--err); }
+
 .wk__legend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+/* «Δείξε / κρύψε» τον κωδικό — σε κινητό με βρεγμένα χέρια είναι ανάγκη. */
+.field__pw { position: relative; }
+.field__eye {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  cursor: pointer; background: none; border: 0; padding: 8px 10px;
+  font-family: var(--ff-num); font-size: .62rem; letter-spacing: .08em; color: var(--muted);
+}
+.field__eye:hover { color: var(--ink); }
+.field__pw input { padding-right: 76px; }
+
 .adm__sel { width: 100%; padding: 13px 14px; font: inherit; color: var(--ink); background: var(--bg); border: var(--bw) solid var(--line); border-radius: var(--r); }
 
 /* Στο κινητό βγαίνει από κάτω (φυσικό για τον αντίχειρα), στον υπολογιστή

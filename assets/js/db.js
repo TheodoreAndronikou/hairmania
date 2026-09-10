@@ -87,11 +87,28 @@
     },
 
     adminReopen: function (pin, dateISO) { return rpc('admin_reopen', { p_pin: pin, p_date: dateISO }); },
+    adminSetPin: function (pin, next) { return rpc('admin_set_pin', { p_pin: pin, p_new: next }); },
     adminDelete: function (pin, id) { return rpc('admin_delete', { p_pin: pin, p_id: id }); },
 
-    /** Ακύρωση ραντεβού ΜΕ ειδοποίηση του πελάτη (και προαιρετική αιτία). */
+    /**
+     * Ακύρωση ραντεβού ΜΕ ειδοποίηση του πελάτη (και προαιρετική αιτία).
+     *
+     * Το admin_cancel μπαίνει στη βάση με το patch-02-email.sql. Όσο δεν
+     * έχει τρέξει, η PostgREST απαντάει PGRST202 και ΤΟ ΚΟΥΜΠΙ ΑΚΥΡΩΣΗΣ
+     * ΔΕΝ ΕΚΑΝΕ ΤΙΠΟΤΑ. Πέφτουμε πίσω στο admin_delete, που ελευθερώνει
+     * την ώρα κανονικά — απλώς χωρίς email.
+     */
     adminCancel: function (pin, id, reason) {
-      return rpc('admin_cancel', { p_pin: pin, p_id: id, p_reason: reason || '' }, 20000);
+      return rpc('admin_cancel', { p_pin: pin, p_id: id, p_reason: reason || '' }, 20000)
+        .then(function (res) {
+          var missing = res && res.ok === false && res.error === 'DB' &&
+                        /PGRST202|Could not find the function/i.test(res.detail || '');
+          if (!missing) return res;
+          return rpc('admin_delete', { p_pin: pin, p_id: id }).then(function (r2) {
+            if (r2 && r2.ok) { r2.notified = false; r2.emailOffline = true; }
+            return r2;
+          });
+        });
     }
   };
 })();
