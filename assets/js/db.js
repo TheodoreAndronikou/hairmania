@@ -22,10 +22,16 @@
     'Authorization': 'Bearer ' + S.key
   };
 
-  /** Κάθε κλήση επιστρέφει το JSON της συνάρτησης, ή {ok:false,error:'NET'}. */
+  /**
+   * Κάθε κλήση επιστρέφει το JSON της συνάρτησης, ή {ok:false,error:'NET'}.
+   *
+   * Τα όρια είναι γενναιόδωρα επίτηδες: σε κινητό δίκτυο, και ιδίως μέσα σε
+   * ενσωματωμένο παράθυρο εφαρμογής, η πρώτη κλήση μπορεί να αργήσει πολύ
+   * περισσότερο απ' ό,τι σε σταθερή σύνδεση.
+   */
   function rpc(fn, args, timeoutMs) {
     var ctrl = new AbortController();
-    var timer = setTimeout(function () { ctrl.abort(); }, timeoutMs || 15000);
+    var timer = setTimeout(function () { ctrl.abort(); }, timeoutMs || 25000);
     return fetch(BASE + fn, {
       method: 'POST',
       headers: HEAD,
@@ -47,9 +53,17 @@
     });
   }
 
+  /** Μόνο για διαβάσματα: μία σιωπηλή επανάληψη αν κόπηκε το δίκτυο. */
+  function rpcRetry(fn, args, timeoutMs) {
+    return rpc(fn, args, timeoutMs).then(function (res) {
+      var flaky = res && res.ok === false && (res.error === 'NET' || res.error === 'TIMEOUT');
+      return flaky ? rpc(fn, args, timeoutMs) : res;
+    });
+  }
+
   window.HMV_DB = {
     /* ---- δημόσια ---- */
-    availability: function (days) { return rpc('availability', { days: days || 21 }); },
+    availability: function (days) { return rpcRetry('availability', { days: days || 21 }); },
 
     book: function (o) {
       return rpc('book', {
@@ -59,14 +73,14 @@
         p_phone: o.phone,
         p_email: o.email || '',
         p_notes: o.notes || ''
-      }, 20000);
+      }, 30000);
     },
 
     appointmentInfo: function (id, key) { return rpc('appointment_info', { p_id: id, p_key: key }); },
     cancelAppointment: function (id, key) { return rpc('cancel_appointment', { p_id: id, p_key: key }); },
 
     /* ---- διαχειριστικό ---- */
-    adminDay: function (pin, dateISO) { return rpc('admin_day', { p_pin: pin, p_date: dateISO }); },
+    adminDay: function (pin, dateISO) { return rpcRetry('admin_day', { p_pin: pin, p_date: dateISO }); },
 
     adminAdd: function (pin, o) {
       return rpc('admin_add', {

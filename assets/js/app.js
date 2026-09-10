@@ -356,10 +356,30 @@
 
   function defaultBar() {
     var b = C.business;
+    var page = document.body.dataset.page || 'home';
     return '<a class="btn btn--ghost" href="tel:' + telHref(b.phones[1] || b.phones[0]) + '">' +
              icon('phone') + '<span data-i18n="bar.call"></span></a>' +
-           '<a class="btn btn--primary" href="rantevou.html">' +
-             icon('scissors') + '<span data-i18n="bar.book"></span></a>';
+           (page === 'book'
+             ? '<a class="btn btn--primary" href="#bk-wizard">' +
+                 icon('scissors') + '<span data-i18n="bar.book"></span></a>'
+             : '<a class="btn btn--primary" href="rantevou.html">' +
+                 icon('scissors') + '<span data-i18n="bar.book"></span></a>');
+  }
+
+  /**
+   * Η σελίδα άνοιξε ΜΕΣΑ σε εφαρμογή (Messenger, Instagram, Viber, TikTok)
+   * και όχι σε κανονικό browser.
+   *
+   * Έχει σημασία: σε αυτά τα ενσωματωμένα παράθυρα το iPhone μπλοκάρει το
+   * κατέβασμα αρχείων, οπότε το κουμπί «.ics» δεν κάνει απολύτως τίποτα —
+   * χωρίς μήνυμα λάθους. Πρέπει να το πούμε εμείς.
+   */
+  function inAppBrowser() {
+    var ua = navigator.userAgent || '';
+    if (/FBAN|FBAV|FB_IAB|FBIOS|Instagram|Messenger|Line\/|MicroMessenger|Viber|TikTok|Snapchat|WhatsApp|Twitter|GSA\//i.test(ua)) return true;
+    /* iOS WKWebView: λείπει το «Safari» και δεν είναι Chrome/Firefox/Edge */
+    if (/iPhone|iPad|iPod/.test(ua) && !/Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua)) return true;
+    return false;
   }
 
   function socialsHTML(s) {
@@ -385,6 +405,7 @@
     grUpper: grUpper, fixGreekCaps: fixGreekCaps,
     DEMO: DEMO, apiGet: apiGet, apiPost: apiPost,
     athens: athens, nowAthens: nowAthens, tzOffsetMs: tzOffsetMs,
+    inApp: inAppBrowser,
     pad: pad, iso: iso, parseISO: parseISO, hm2min: hm2min, min2hm: min2hm,
     dowOf: dowOf, addDaysISO: addDaysISO, fmtDateLong: fmtDateLong, fmtDateShort: fmtDateShort,
     rangesFor: rangesFor, mapsLink: mapsLink, telHref: telHref, fmtPhone: fmtPhone,

@@ -415,24 +415,18 @@
 
     H.fixGreekCaps(el.summary);
     el.submit.disabled = !ready;
-    renderBar(ready, svc);
+    renderBar();
   }
 
-  /* Κάτω μπάρα κινητού: ΜΟΝΟ υπενθύμιση του τι έχει διαλέξει.
-     Είχε και δικό της κουμπί «Επιβεβαίωση», οπότε η ίδια ενέργεια
-     εμφανιζόταν τρεις φορές (μπάρα, κουμπί σελίδας, παράθυρο). Το
-     κουμπί έφυγε: υπάρχει ένας μόνο δρόμος για να κλείσει ραντεβού. */
-  function renderBar(ready, svc) {
+  /* Η κάτω μπάρα μένει η κανονική (Κλήση / Ραντεβού) σε όλη τη σελίδα.
+     Είχε γίνει «σύνοψη» που ακολουθούσε παντού — περιττή, αφού η σύνοψη
+     υπάρχει ήδη μέσα στη σελίδα και στο παράθυρο επιβεβαίωσης. */
+  function renderBar() {
     var bar = document.querySelector('[data-bar]');
-    if (!bar) return;
-    if (!ready) {
-      if (bar.dataset.mode !== 'default') { bar.innerHTML = H.defaultBar(); bar.dataset.mode = 'default'; H.applyLang(); }
-      return;
-    }
-    bar.dataset.mode = 'summary';
-    bar.innerHTML =
-      '<span class="bar__sum"><span class="k">' + t('bk.sum') + '</span>' +
-      '<span class="v">' + H.grUpper(H.fmtDateShort(S.date)) + ' · ' + S.time + ' · ' + svc.price + '€</span></span>';
+    if (!bar || bar.dataset.mode === 'default') return;
+    bar.innerHTML = H.defaultBar();
+    bar.dataset.mode = 'default';
+    H.applyLang();
     H.fixGreekCaps(bar);
   }
 
@@ -448,6 +442,15 @@
     var em = field('f-email').value.trim();
     ok = invalid('f-email', em !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) && ok;
     return ok;
+  }
+
+  /* Καλύτερα να το μάθει τώρα παρά αφού κλείσει το ραντεβού. */
+  if (H.inApp()) {
+    var warn = document.createElement('div');
+    warn.className = 'openin';
+    warn.innerHTML = '<b>' + t('app.title') + '</b><span>' + t('app.body') + '</span>';
+    var host = document.getElementById('bk-wizard');
+    if (host) host.insertBefore(warn, host.firstChild);
   }
 
   /* ---------------- φύλλο επιβεβαίωσης ----------------
@@ -574,11 +577,15 @@
         showErr(t('bk.taken'));
         S.time = null; S.idem = null;
         loadSlots(); renderSummary(); setStep(3);
-      } else {
-        showErr(t('bk.failed'));
+        return;
       }
-    }).catch(function () {
+      /* Χάθηκε η απάντηση. Το ραντεβού ΜΠΟΡΕΙ να έχει γραφτεί κανονικά —
+         ρωτάμε ξανά τη βάση αντί να αφήσουμε τον πελάτη να ξαναπατήσει
+         και να νομίζει ότι απέτυχε. */
+      if (res && (res.error === 'NET' || res.error === 'TIMEOUT')) { afterNetFail(); return; }
       showErr(t('bk.failed'));
+    }).catch(function () {
+      afterNetFail();
     }).then(function () {
       S.submitting = false;
       S.confirmed = false;          /* η επόμενη προσπάθεια ξαναρωτάει */
@@ -587,6 +594,30 @@
       el.submit.disabled = !(S.service && S.date && S.time);
     });
   });
+
+  /**
+   * Μετά από χαμένη απάντηση: ξαναρωτάμε ποιες ώρες είναι ελεύθερες.
+   * Αν η δική μας έφυγε, το ραντεβού μάλλον πέρασε — και το χειρότερο που
+   * μπορεί να κάνει ο πελάτης είναι να ξαναπατήσει και να μπερδευτεί.
+   */
+  function afterNetFail() {
+    var want = S.time;
+    showErr(t('bk.netfail') + ' ' + t('bk.net_check'), 'hint--warn');
+    if (!DB) { showErr(t('bk.failed')); return; }
+
+    DB.availability(C.booking.daysAhead).then(function (res) {
+      if (!res || !res.ok || !Array.isArray(res.busy)) { showErr(t('bk.failed')); return; }
+      S.busy = res.busy;
+      var free = computeSlots(S.date, findSvc(S.service) || S.services[0]);
+      if (free.indexOf(want) < 0) {
+        showErr(t('bk.netfail') + ' ' + t('bk.net_maybe'), 'hint--err');
+        S.time = null; S.idem = null;
+        loadSlots(); renderSummary(); setStep(3);
+      } else {
+        showErr(t('bk.netfail') + ' ' + t('bk.net_no'), 'hint--warn');
+      }
+    }).catch(function () { showErr(t('bk.failed')); });
+  }
 
   /* ---------------- success ---------------- */
   function success(res, payload, svc) {
@@ -624,6 +655,10 @@
           '<p>' + H.grUpper(H.fmtDateLong(payload.date) + ' · ' + payload.time + ' · ' + svcName(svc)) + '</p>' +
         '</div>' +
         '<div class="confirm__bd">' +
+          (H.inApp()
+            ? '<div class="openin"><b>' + t('app.title') + '</b><span>' + t('app.body') + '</span>' +
+              '<button type="button" class="btn btn--wide" id="cp-page">' + t('app.copy') + '</button></div>'
+            : '') +
           '<p class="muted" style="font-size:.8rem;margin-bottom:2px">' + t('ok.code') + '</p>' +
           '<div class="confirm__code">' + (res.cancelKey || '').toUpperCase() + '</div>' +
           '<p class="muted" style="font-size:.88rem;margin-top:10px">' + t('ok.sub') + '</p>' +
@@ -651,6 +686,13 @@
       var tip = document.getElementById('ios-tip');
       if (tip && isIOS) tip.hidden = false;
       window.ICS.download(icsText, 'rantevou-hairmania.ics');
+    });
+    var cpPage = document.getElementById('cp-page');
+    if (cpPage) cpPage.addEventListener('click', function () {
+      var self = this;
+      var done = function () { self.textContent = '✓ ' + t('ok.copied'); };
+      if (navigator.clipboard) navigator.clipboard.writeText(cancelUrl).then(done, done);
+      else { window.prompt(t('ok.cancel'), cancelUrl); }
     });
     document.getElementById('cp-link').addEventListener('click', function () {
       var btn = this;

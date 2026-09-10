@@ -258,7 +258,7 @@
   function paintWeek() {
     paintHeader();
     if (!week) return;
-    var D = H.days(), n = H.nowAthens(), step = (C.booking && C.booking.slotStep) || 30;
+    var D = H.days(), n = H.nowAthens(), stepMin = (C.booking && C.booking.slotStep) || 30;
 
     /* Το πλέγμα καλύπτει από το νωρίτερο άνοιγμα ως το αργότερο κλείσιμο
        της εβδομάδας — όχι όλο το 24ωρο, που θα ήταν άχρηστο σκρολάρισμα. */
@@ -274,7 +274,7 @@
 
     document.getElementById('adm-sub').textContent = total + ' ραντεβού τη βδομάδα';
 
-    var rows = Math.ceil((hi - lo) / step);
+    var rows = Math.ceil((hi - lo) / stepMin);
     var html = '<div class="wk"><div class="wk__grid">';
 
     html += '<div class="wk__hd"></div>';
@@ -285,7 +285,7 @@
     });
 
     for (var r = 0; r < rows; r++) {
-      var m = lo + r * step;
+      var m = lo + r * stepMin;
       html += '<div class="wk__time" style="grid-row:' + (r + 2) + '">' +
               (m % 60 === 0 ? H.min2hm(m) : '') + '</div>';
     }
@@ -296,7 +296,7 @@
       var closed = day_.closed !== null || !open.length;
 
       for (var r = 0; r < rows; r++) {
-        var m = lo + r * step;
+        var m = lo + r * stepMin;
         var inHours = !closed && open.some(function (x) {
           return m >= H.hm2min(x[0]) && m < H.hm2min(x[1]);
         });
@@ -307,9 +307,9 @@
 
       (day_.items || []).forEach(function (it) {
         var start = H.hm2min(it.time);
-        var r0 = Math.round((start - lo) / step);
+        var r0 = Math.round((start - lo) / stepMin);
         if (r0 < 0 || r0 >= rows) return;
-        var span = Math.max(1, Math.round(it.min / step));
+        var span = Math.max(1, Math.round(it.min / stepMin));
         if (r0 + span > rows) span = rows - r0;
         html += '<div class="wk__ev' + (it.block ? ' wk__ev--block' : (it.online ? ' wk__ev--online' : '')) + '"' +
           ' style="grid-column:' + (col + 2) + ';grid-row:' + (r0 + 2) + '/span ' + span + '"' +
@@ -325,9 +325,18 @@
       '<span><i style="background:var(--surface-2);border:1px dashed var(--line-soft)"></i>μπλοκάρισμα</span>' +
       '<span>Πάτα ελεύθερο κελί για ενέργειες</span></div></div>';
 
+    /* Βελάκια στο πλάι, στο ύψος του μεσημεριού: με το ένα χέρι ο
+       αντίχειρας τα φτάνει, ενώ τα πάνω βελάκια θέλουν τέντωμα. */
+    html += '<button class="wk__nav wk__nav--prev" id="wk-prev" aria-label="Προηγούμενη εβδομάδα"></button>' +
+            '<button class="wk__nav wk__nav--next" id="wk-next" aria-label="Επόμενη εβδομάδα"></button>';
+
     var host = document.getElementById('adm-week');
     host.innerHTML = html;
     H.fixGreekCaps(host);
+    document.getElementById('wk-prev').innerHTML = H.icon('left');
+    document.getElementById('wk-next').innerHTML = H.icon('right');
+    document.getElementById('wk-prev').addEventListener('click', function () { step(-1); });
+    document.getElementById('wk-next').addEventListener('click', function () { step(1); });
 
     host.querySelectorAll('[data-go]').forEach(function (c) {
       c.addEventListener('click', function () { slotMenu(c.dataset.go, c.dataset.at); });
