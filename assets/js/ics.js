@@ -46,7 +46,7 @@
     var L = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//Hair Mania Valkanis//Booking//EL',
+      'PRODID:-//' + esc(window.CONFIG.business.name) + '//Booking//EL',
       'CALSCALE:GREGORIAN',
       'METHOD:PUBLISH',
       'BEGIN:VEVENT',

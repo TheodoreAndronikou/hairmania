@@ -27,7 +27,7 @@ window.I18N = {
     'status.today': 'σήμερα',
     'status.tomorrow': 'αύριο',
 
-    'hero.eyebrow': 'Barber Shop · Γιαννιτσά',
+    'hero.eyebrow': 'Barber Shop · {CITY}',
     'hero.h1a': 'Το κούρεμα',
     'hero.h1b': 'που σου αξίζει',
     'hero.sub': 'Κλείσε ραντεβού online σε 30 δευτερόλεπτα. Χωρίς τηλέφωνα που δεν απαντούν, χωρίς αναμονή στην καρέκλα.',
@@ -150,7 +150,7 @@ window.I18N = {
     'ct.email': 'Email',
     'ct.address': 'Διεύθυνση',
     'ct.directions': 'Οδηγίες πλοήγησης',
-    'ct.map_title': 'Χάρτης — HAIR MANIA VALKANIS',
+    'ct.map_title': 'Χάρτης — {NAME}',
 
     'vac.title': 'Κλειστά',
     'vac.body': 'Το κατάστημα είναι κλειστό αυτές τις ημέρες. Μπορείς να κλείσεις ραντεβού για μετά.',
@@ -158,7 +158,7 @@ window.I18N = {
     'ftr.hours': 'Ωράριο',
     'ftr.links': 'Σελίδες',
     'ftr.rights': 'Με επιφύλαξη παντός δικαιώματος.',
-    'ftr.blurb': 'Παραδοσιακό barber shop στα Γιαννιτσά. Κούρεμα, γενειάδα, ξύρισμα με λεπίδα.'
+    'ftr.blurb': 'Παραδοσιακό barber shop {CITY_IN}. Κούρεμα, γενειάδα, ξύρισμα με λεπίδα.'
   },
 
   en: {
@@ -184,7 +184,7 @@ window.I18N = {
     'status.today': 'today',
     'status.tomorrow': 'tomorrow',
 
-    'hero.eyebrow': 'Barber Shop · Giannitsa',
+    'hero.eyebrow': 'Barber Shop · {CITY}',
     'hero.h1a': 'The haircut',
     'hero.h1b': 'you deserve',
     'hero.sub': 'Book online in 30 seconds. No unanswered phone calls, no waiting around.',
@@ -313,7 +313,7 @@ window.I18N = {
     'ct.email': 'Email',
     'ct.address': 'Address',
     'ct.directions': 'Get directions',
-    'ct.map_title': 'Map — HAIR MANIA VALKANIS',
+    'ct.map_title': 'Map — {NAME}',
 
     'vac.title': 'Closed',
     'vac.body': 'The shop is closed on these dates. You can book for after that.',
@@ -321,7 +321,7 @@ window.I18N = {
     'ftr.hours': 'Hours',
     'ftr.links': 'Pages',
     'ftr.rights': 'All rights reserved.',
-    'ftr.blurb': 'Traditional barber shop in Giannitsa. Haircuts, beards, straight-razor shaves.'
+    'ftr.blurb': 'Traditional barber shop in {CITY}. Haircuts, beards, straight-razor shaves.'
   }
 };
 

@@ -1,5 +1,5 @@
 /* =============================================================
-   HAIR MANIA VALKANIS — κοινός κώδικας για όλες τις σελίδες
+   Κοινός κώδικας για όλες τις σελίδες
    ============================================================= */
 (function () {
   'use strict';
@@ -102,9 +102,22 @@
     return 'el';
   })();
 
+  /* Τα κείμενα δεν γράφουν όνομα καταστήματος ή πόλη — γράφουν
+     {NAME}, {CITY}, {CITY_IN} και συμπληρώνονται από το config.
+     Έτσι ένα νέο κατάστημα αλλάζει ΜΟΝΟ το config.js.
+     split/join και όχι replace: το $ στο replace έχει ειδική σημασία. */
+  function fill(s) {
+    var a = C.business.address;
+    var city = (LANG === 'en' && a.cityEn) ? a.cityEn : a.city;
+    return s.split('{NAME}').join(C.business.name)
+            .split('{CITY_IN}').join(LANG === 'en' ? 'in ' + city : (a.cityIn || a.city))
+            .split('{CITY}').join(city);
+  }
+
   function t(key) {
     var d = window.I18N[LANG] || window.I18N.el;
-    return (key in d) ? d[key] : (window.I18N.el[key] || key);
+    var v = (key in d) ? d[key] : (window.I18N.el[key] || key);
+    return v.indexOf('{') < 0 ? v : fill(v);
   }
   function days() { return window.DAYS[LANG] || window.DAYS.el; }
 
@@ -306,7 +319,8 @@
         '<div class="hdr__in">' +
           '<a class="brand" href="index.html">' +
             '<img src="assets/img/logo.jpg" alt="' + b.name + '" width="45" height="30">' +
-            '<span class="brand__txt">HAIR MANIA<small>VALKANIS</small></span>' +
+            '<span class="brand__txt">' + (b.brandTop || b.name) +
+              (b.brandSub ? '<small>' + b.brandSub + '</small>' : '') + '</span>' +
           '</a>' +
           '<nav class="nav">' + navLinks(page) + '</nav>' +
           '<div class="lang" role="group" aria-label="Language">' +
