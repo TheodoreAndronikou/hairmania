@@ -1,7 +1,8 @@
 /* =============================================================
    Booking wizard — Υπηρεσία → Ημέρα → Ώρα → Στοιχεία
-   Ο server (Google Apps Script) είναι η μόνη πηγή αλήθειας:
-   το frontend δεν κρατάει ποτέ την τελική απόφαση για ένα slot.
+   Η βάση είναι η μόνη πηγή αλήθειας: το frontend δεν κρατάει ποτέ
+   την τελική απόφαση για ένα slot. Αν δύο πελάτες πατήσουν την ίδια
+   ώρα, η βάση δέχεται τον έναν και απορρίπτει τον άλλο.
    ============================================================= */
 (function () {
   'use strict';
@@ -39,7 +40,6 @@
     closures: [],   /* [{from:'YYYY-MM-DD', to:'YYYY-MM-DD', title}] */
     slots: [],
     busy: [], ready: false, pending: null,
-    loadToken: 0,
     submitting: false,
     confirmed: false,
     idem: null
@@ -230,10 +230,9 @@
   /**
    * Υπολογισμός διαθέσιμων ωρών ΤΟΠΙΚΑ.
    *
-   * Το Apps Script θέλει ~2s ανά κλήση και σειριοποιεί τις ταυτόχρονες, οπότε
-   * μία κλήση ανά ημέρα σήμαινε αναμονή σε κάθε πάτημα. Παίρνουμε τα
-   * κατειλημμένα διαστήματα μία φορά (bootstrap) και υπολογίζουμε εδώ.
-   * Ο server παραμένει η πηγή αλήθειας: ξαναελέγχει στην κράτηση.
+   * Τα κατειλημμένα διαστήματα έρχονται με μία κλήση στο άνοιγμα της
+   * σελίδας, και από εκεί κάθε πάτημα ημέρας είναι ακαριαίο. Η βάση
+   * παραμένει η πηγή αλήθειας: ξαναελέγχει τη στιγμή της κράτησης.
    */
   function computeSlots(dateISO, svc) {
     if (!dayOpen(dateISO)) return [];
@@ -286,35 +285,10 @@
       return;
     }
 
-    /* Παλιά έκδοση backend (δεν στέλνει διαστήματα): γυρνάμε στην κλήση ανά
-       ημέρα. Αργή, αλλά ΣΩΣΤΗ — ποτέ δεν δείχνουμε ώρες που ίσως είναι πιασμένες. */
-    if (S.legacy) { loadSlotsRemote(advance); return; }
-
     el.slotsMsg.hidden = true;
     S.slots = H.DEMO ? demoSlots(S.date, svc.min) : computeSlots(S.date, svc);
     renderSlots();
     if (advance) goToStep(3);
-  }
-
-  function loadSlotsRemote(advance) {
-    var svc = findSvc(S.service) || S.services[0];
-    var token = ++S.loadToken;
-    el.slotsMsg.hidden = true;
-    el.slots.innerHTML = '<div class="sk" role="status" aria-live="polite"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
-
-    H.apiGet({ action: 'slots', date: S.date, service: svc.id }).then(function (res) {
-      if (token !== S.loadToken) return;
-      if (!res || !res.ok) throw new Error('bad');
-      S.slots = res.slots || [];
-      renderSlots();
-      if (advance) goToStep(3);
-    }).catch(function () {
-      if (token !== S.loadToken) return;
-      el.slots.innerHTML = '';
-      el.slotsMsg.hidden = false;
-      el.slotsMsg.className = 'hint hint--err';
-      el.slotsMsg.textContent = t('bk.loaderr');
-    });
   }
 
   function renderSlots() {
@@ -373,8 +347,6 @@
         S.time = inp.value; showErr(''); renderSummary(); setStep(currentStep());
         var name = document.getElementById('f-name');
         goToStep(4, name && !name.value ? name : null);
-        /* Η κράτηση πάει στο Apps Script, που κοιμάται. Το ξυπνάμε τώρα, όσο
-           συμπληρώνει τα στοιχεία του, ώστε το «Επιβεβαίωση» να μην κολλήσει. */
       });
     });
   }
@@ -551,12 +523,10 @@
             res({ ok: true, eventId: 'demo-' + S.idem, cancelKey: Math.random().toString(36).slice(2, 10) });
           }, 900);
         })
-      : DB
-        ? DB.book({ start: startOf(S.date, S.time), serviceId: svc.id,
-                    name: payload.name, phone: payload.phone,
-                    email: payload.email, notes: payload.notes })
-            .then(function (r) { if (r && r.ok) r.eventId = r.id; return r; })
-        : H.apiPost(payload);
+      : DB.book({ start: startOf(S.date, S.time), serviceId: svc.id,
+                  name: payload.name, phone: payload.phone,
+                  email: payload.email, notes: payload.notes })
+          .then(function (r) { if (r && r.ok) r.eventId = r.id; return r; });
 
     p.then(function (res) {
       if (res && res.ok) { success(res, payload, svc); return; }
@@ -687,33 +657,6 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  /**
-   * Το στιγμιότυπο είναι γρήγορο αλλά παγωμένο. Ζητάμε τα ζωντανά από
-   * πίσω και διορθώνουμε αθόρυβα όταν έρθουν: ο επισκέπτης βλέπει ώρες
-   * αμέσως, και σωστές ώρες λίγα δευτερόλεπτα μετά. Αν στο μεταξύ κάτι
-   * προλάβει να πιαστεί, ο server το απορρίπτει στην κράτηση.
-   */
-  function refreshLive() {
-    H.apiGet({ action: 'bootstrap' }).then(function (res) {
-      if (!res || !res.ok || !Array.isArray(res.busy)) return;
-      S.busy = res.busy;
-      if (res.closures) S.closures = res.closures;
-      renderDays();
-      if (S.date) {
-        var keep = S.time;
-        loadSlots();
-        if (keep) reselect(keep);
-      }
-    }).catch(function () { /* μένουμε στο στιγμιότυπο */ });
-  }
-
-  /** Κρατάμε την ώρα που είχε ήδη διαλέξει — αν υπάρχει ακόμα. */
-  function reselect(time) {
-    var inp = document.getElementById('t-' + time);
-    if (inp) { inp.checked = true; S.time = time; renderSummary(); }
-    else { S.time = null; renderSummary(); showErr(t('bk.taken'), 'hint--warn'); }
-  }
-
   /* ---------------- bootstrap ---------------- */
   function init() {
     renderServices(); renderDays(); renderSummary(); setStep(1);
@@ -721,18 +664,14 @@
 
     if (H.DEMO) { S.ready = true; return; }
 
-    /* Μία κλήση στη βάση (~100ms). Τέλος τα στιγμιότυπα και οι ουρές. */
-    var source = DB ? DB.availability(C.booking.daysAhead)
-                    : H.apiGet({ action: 'bootstrap' });
-
-    source.then(function (res) {
+    /* Μία κλήση στη βάση (~100ms): υπηρεσίες, ωράριο, κλεισίματα και
+       κατειλημμένα διαστήματα μαζί. */
+    DB.availability(C.booking.daysAhead).then(function (res) {
       if (!res || !res.ok) throw new Error('bootstrap');
       if (res.services && res.services.length) { S.services = res.services; C.services = res.services; }
       if (res.hours) { S.hours = res.hours; C.hours = res.hours; }
       if (res.closures) S.closures = res.closures;
-      /* Ανιχνεύουμε αν ο server είναι η νέα έκδοση. */
-      if (Array.isArray(res.busy)) { S.busy = res.busy; S.legacy = false; }
-      else { S.legacy = !DB; }
+      if (Array.isArray(res.busy)) S.busy = res.busy;
       if (res.leadMinutes) S.leadMinutes = res.leadMinutes;
       if (res.slotStep) S.slotStep = res.slotStep;
       S.ready = true;

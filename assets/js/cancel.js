@@ -28,7 +28,7 @@
 
   box.innerHTML = '<div class="spin"></div><p class="center muted">' + t('cx.loading') + '</p>';
 
-  var demo = H.DEMO && !DB;
+  var demo = H.DEMO;
 
   function load() {
     if (demo) {
@@ -39,7 +39,7 @@
         serviceName: 'Κούρεμα & γενειάδα', name: 'Demo'
       });
     }
-    return DB ? DB.appointmentInfo(id, key) : H.apiGet({ action: 'appointment', id: id, k: key });
+    return DB.appointmentInfo(id, key);
   }
 
   load().then(function (res) {
@@ -69,9 +69,7 @@
     var go = document.getElementById('cx-go');
     if (go) go.addEventListener('click', function () {
       go.disabled = true; go.textContent = '…';
-      var p2 = demo ? Promise.resolve({ ok: true })
-        : DB ? DB.cancelAppointment(id, key)
-        : H.apiPost({ action: 'cancel', id: id, k: key });
+      var p2 = demo ? Promise.resolve({ ok: true }) : DB.cancelAppointment(id, key);
       p2.then(function (r) {
         if (r && r.ok) {
           box.innerHTML =

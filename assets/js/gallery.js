@@ -1,7 +1,7 @@
 /* =============================================================
-   Gallery — φορτώνει τις φωτογραφίες από τον φάκελο Google Drive
-   του ιδιοκτήτη (μέσω Apps Script). Αν δεν υπάρχει backend,
-   δείχνει τις φωτογραφίες του config.js.
+   Gallery — οι φωτογραφίες ορίζονται στο config.js (ενότητα gallery)
+   και τα αρχεία ζουν στο site/assets/img/. Για να αλλάξει μια
+   φωτογραφία: νέο αρχείο εκεί, ενημέρωση του config, publish.
    ============================================================= */
 (function () {
   'use strict';
@@ -58,13 +58,4 @@
 
   document.addEventListener('langchange', render);
   render();
-
-  if (!H.DEMO) {
-    H.apiGet({ action: 'gallery' }).then(function (res) {
-      if (res && res.ok && res.images && res.images.length) {
-        items = res.images.map(function (im) { return { src: im.url, el: im.name, en: im.name }; });
-        render();
-      }
-    }).catch(function () { /* κρατάμε τις φωτογραφίες του config */ });
-  }
 })();

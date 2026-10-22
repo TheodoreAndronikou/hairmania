@@ -210,28 +210,11 @@
     return D.short[dowOf(isoDate)] + ' ' + p.d + ' ' + D.months[p.m - 1];
   }
 
-  /* ---------- API ---------------------------------------------------- */
-  var DEMO = !C.API_URL;
-
-  function apiGet(params) {
-    if (DEMO) return Promise.reject(new Error('DEMO'));
-    var qs = Object.keys(params).map(function (k) {
-      return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
-    }).join('&');
-    return fetch(C.API_URL + '?' + qs, { method: 'GET', redirect: 'follow' })
-      .then(function (r) { return r.json(); });
-  }
-
-  /* text/plain => "simple request", ώστε το Apps Script να μη χρειάζεται
-     preflight OPTIONS (που δεν υποστηρίζει). */
-  function apiPost(body) {
-    if (DEMO) return Promise.reject(new Error('DEMO'));
-    return fetch(C.API_URL, {
-      method: 'POST', redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(body)
-    }).then(function (r) { return r.json(); });
-  }
+  /* ---------- λειτουργία επίδειξης -----------------------------------
+     Χωρίς στοιχεία βάσης στο config.js, η σελίδα κράτησης δείχνει
+     ψεύτικες ώρες και δεν κλείνει τίποτα. Βγαίνει από το config και όχι
+     από το αν φόρτωσε το db.js, γιατί δεν το φορτώνουν όλες οι σελίδες. */
+  var DEMO = !(C.SUPABASE && C.SUPABASE.url && C.SUPABASE.key);
 
   /* ---------- ωράριο / κατάσταση ------------------------------------- */
   function rangesFor(dow) { return (C.hours[dow] || []).map(function (r) { return [hm2min(r[0]), hm2min(r[1])]; }); }
@@ -417,7 +400,7 @@
     get theme() { return THEME; },
     setLang: setLang, t: t, days: days, icon: icon,
     grUpper: grUpper, fixGreekCaps: fixGreekCaps,
-    DEMO: DEMO, apiGet: apiGet, apiPost: apiPost,
+    DEMO: DEMO,
     athens: athens, nowAthens: nowAthens, tzOffsetMs: tzOffsetMs,
     inApp: inAppBrowser,
     pad: pad, iso: iso, parseISO: parseISO, hm2min: hm2min, min2hm: min2hm,
@@ -425,28 +408,6 @@
     rangesFor: rangesFor, mapsLink: mapsLink, telHref: telHref, fmtPhone: fmtPhone,
     renderPrices: renderPrices, applyLang: applyLang, defaultBar: defaultBar
   };
-
-  /**
-   * Ξύπνημα του backend.
-   *
-   * Το Apps Script «κοιμάται» μετά από λίγη αδράνεια και η πρώτη κλήση μπορεί
-   * να θέλει 20-30 δευτερόλεπτα, ενώ οι επόμενες 2-3. Ο επισκέπτης όμως
-   * σχεδόν πάντα περνάει πρώτα από άλλη σελίδα: το ξυπνάμε από εκεί, ώστε
-   * όταν φτάσει στα ραντεβού να είναι ήδη ζεστό.
-   *
-   * Στη σελίδα ραντεβού ΔΕΝ το κάνουμε — εκεί τρέχει ήδη το bootstrap και
-   * δύο ταυτόχρονες κλήσεις μπαίνουν σε ουρά και αργούν χειρότερα.
-   */
-  function warmBackend() {
-    if (DEMO) return;
-    if ((document.body.dataset.page || '') === 'book') return;
-    try {
-      var last = +(sessionStorage.getItem('hmv_warm') || 0);
-      if (Date.now() - last < 120000) return;
-      sessionStorage.setItem('hmv_warm', String(Date.now()));
-    } catch (e) {}
-    apiGet({ action: 'ping' }).catch(function () {});
-  }
 
   function boot() {
     buildChrome();
@@ -456,7 +417,6 @@
     renderStatus();
     fixGreekCaps();
     setInterval(renderStatus, 60000);
-    warmBackend();
 
     document.addEventListener('langchange', function () {
       renderHours(); renderPrices(); renderStatus();
