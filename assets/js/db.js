@@ -41,6 +41,10 @@
       return r.json().then(function (j) {
         /* Σφάλμα Postgres έρχεται ως {code,message,...} χωρίς ok */
         if (j && typeof j === 'object' && !('ok' in j) && (j.code || j.message)) {
+          /* Η admin_ok κλειδώνει μετά από πολλές λάθος προσπάθειες
+             (patch-05) — ξεχωριστό σφάλμα, για να μη φαίνεται σαν
+             «λάθος κωδικός» ενώ ο κωδικός ίσως είναι σωστός. */
+          if (j.message === 'LOCKED') return { ok: false, error: 'LOCKED' };
           return { ok: false, error: 'DB', detail: j.message || j.code };
         }
         return j;

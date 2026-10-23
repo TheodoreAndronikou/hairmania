@@ -38,6 +38,8 @@
   try { pin = sessionStorage.getItem('hmv_pin') || ''; } catch (e) {}
 
   /* ---------- είσοδος ---------- */
+  var LOCKED_MSG = 'Πολλές λάθος προσπάθειες κωδικού — το διαχειριστικό κλείδωσε για ασφάλεια. Ξαναδοκίμασε σε 15 λεπτά.';
+
   function tryPin() {
     var v = document.getElementById('pw').value.trim();
     var btn = document.getElementById('gate-go');
@@ -54,7 +56,7 @@
       } else {
         err.textContent = !res ? 'Δεν συνδέθηκε — δοκίμασε ξανά'
           : res.error === 'BAD_PIN' ? 'Λάθος κωδικός'
-          : res.error === 'UNKNOWN_ACTION' ? 'Ο server τρέχει παλιά έκδοση — ανέβασε ξανά το Code.gs'
+          : res.error === 'LOCKED' ? LOCKED_MSG
           : 'Δεν συνδέθηκε — δοκίμασε ξανά';
         err.style.display = 'block';
       }
@@ -138,7 +140,13 @@
       DB.adminDay(pin, day).then(function (res) {
         if (seq !== loadSeq) return;
         setBusy(false);
-        if (!res || !res.ok) { fail(res && res.error === 'BAD_PIN' ? 'Ο κωδικός δεν ισχύει πια' : 'Δεν φόρτωσε'); return; }
+        if (!res || !res.ok) {
+          fail(!res ? 'Δεν φόρτωσε'
+            : res.error === 'BAD_PIN' ? 'Ο κωδικός δεν ισχύει πια'
+            : res.error === 'LOCKED' ? LOCKED_MSG
+            : 'Δεν φόρτωσε');
+          return;
+        }
         data = res; paint();
       }).catch(function () {
         if (seq !== loadSeq) return;
@@ -156,7 +164,12 @@
       if (seq !== loadSeq) return;
       setBusy(false);
       var bad = all.filter(function (r) { return !r || !r.ok; })[0];
-      if (bad) { failWeek(bad.error === 'BAD_PIN' ? 'Ο κωδικός δεν ισχύει πια' : 'Δεν φόρτωσε'); return; }
+      if (bad) {
+        failWeek(bad.error === 'BAD_PIN' ? 'Ο κωδικός δεν ισχύει πια'
+          : bad.error === 'LOCKED' ? LOCKED_MSG
+          : 'Δεν φόρτωσε');
+        return;
+      }
       week = { days: days, data: {} };
       days.forEach(function (d, i) { week.data[d] = all[i]; });
       paintWeek();
@@ -434,6 +447,7 @@
       btn.disabled = false; btn.textContent = label;
       alertSheet(!res ? 'Δεν αποθηκεύτηκε — δοκίμασε ξανά'
         : res.error === 'BAD_PIN' ? 'Ο κωδικός δεν ισχύει'
+        : res.error === 'LOCKED' ? LOCKED_MSG
         : res.error === 'SLOT_TAKEN' ? 'Η ώρα είναι ήδη πιασμένη'
         : 'Δεν αποθηκεύτηκε — δοκίμασε ξανά');
     }).catch(function () {
