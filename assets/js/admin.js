@@ -786,18 +786,25 @@
       return;
     }
 
-    var hasEmail = !!item.email;
+    /* Υπόσχεση ειδοποίησης ΜΟΝΟ αν το email θα φτάσει στ' αλήθεια: να έχει
+       email ο πελάτης ΚΑΙ να λειτουργούν τα email προς πελάτες (config).
+       Αλλιώς ο κουρέας νομίζει ότι ενημερώθηκε, και ο πελάτης έρχεται
+       σε κλειστή πόρτα. */
+    var mailsOn = !!(C.booking && C.booking.customerEmails);
+    var notify = mailsOn && !!item.email;
+    var callTip = item.phone ? 'πάρε τον τηλέφωνο πρώτα.' : 'δεν άφησε ούτε τηλέφωνο.';
     openSheet('Ακύρωση ραντεβού',
       '<p style="margin-top:0">Ακύρωση του ραντεβού:</p>' +
       '<p style="font-weight:600;font-size:1.05rem;margin-bottom:16px">' + esc(label) + '</p>' +
-      (hasEmail
+      (notify
         ? '<p class="hint" style="display:block;margin-bottom:14px"><b>Θα σταλεί email στον πελάτη</b> ' +
           'ότι ακυρώθηκε, μαζί με υπενθύμιση να το σβήσει και από το ημερολόγιο του κινητού του.</p>'
-        : '<p class="hint hint--warn" style="display:block;margin-bottom:14px"><b>Δεν έχει δώσει email.</b> ' +
-          'Δεν θα ειδοποιηθεί αυτόματα — ' +
-          (item.phone ? 'πάρε τον τηλέφωνο πρώτα.' : 'δεν άφησε ούτε τηλέφωνο.') + '</p>') +
-      '<div class="field"><label for="d-why">Αιτία (μπαίνει στο email)</label>' +
-      '<input id="d-why" type="text" placeholder="π.χ. έκτακτο κώλυμα, θα επικοινωνήσω"></div>' +
+        : '<p class="hint hint--warn" style="display:block;margin-bottom:14px"><b>Ο πελάτης δεν θα ειδοποιηθεί αυτόματα.</b> ' +
+          callTip + '</p>') +
+      (notify
+        ? '<div class="field"><label for="d-why">Αιτία (μπαίνει στο email)</label>' +
+          '<input id="d-why" type="text" placeholder="π.χ. έκτακτο κώλυμα, θα επικοινωνήσω"></div>'
+        : '') +
       '<div style="display:grid;gap:8px">' +
         (item.phone ? '<a class="btn btn--ghost btn--wide" href="tel:+30' + esc(item.phone) + '">ΠΑΡΕ ΤΟΝ ΠΕΛΑΤΗ ΠΡΩΤΑ</a>' : '') +
         '<button class="btn btn--wide" id="d-yes" style="background:var(--err);color:#fff;border-color:var(--err)"></button>' +
@@ -805,9 +812,10 @@
       '</div>',
       function () {
         var yes = document.getElementById('d-yes');
-        yes.textContent = hasEmail ? 'ΑΚΥΡΩΣΗ ΚΑΙ ΕΙΔΟΠΟΙΗΣΗ' : 'ΑΚΥΡΩΣΗ';
+        yes.textContent = notify ? 'ΑΚΥΡΩΣΗ ΚΑΙ ΕΙΔΟΠΟΙΗΣΗ' : 'ΑΚΥΡΩΣΗ';
         yes.addEventListener('click', function () {
-          var why = document.getElementById('d-why').value.trim();
+          var whyEl = document.getElementById('d-why');
+          var why = whyEl ? whyEl.value.trim() : '';
           run(yes, function () { return DB.adminCancel(pin, id, why); });
         });
         document.getElementById('d-no').addEventListener('click', closeSheet);

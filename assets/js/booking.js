@@ -659,6 +659,11 @@
 
   /* ---------------- bootstrap ---------------- */
   function init() {
+    /* Όσο τα email προς πελάτες δεν λειτουργούν (βλ. config), δεν ζητάμε
+       email: θα το κρατούσαμε χωρίς να το χρησιμοποιήσουμε. */
+    var emField = document.getElementById('f-email-field');
+    if (emField && !C.booking.customerEmails) emField.hidden = true;
+
     renderServices(); renderDays(); renderSummary(); setStep(1);
     el.slotsMsg.hidden = false; el.slotsMsg.className = 'hint'; el.slotsMsg.textContent = t('bk.pickday');
 
